@@ -42,7 +42,7 @@ export const MultiValidityCard = ({
             options: [
                 { label: "Months(s)", value: "months" },
                 { label: "Years(s)", value: "years" },
-                { label: "Weeks(s)", value: "weeks" },
+                // { label: "Weeks(s)", value: "weeks" },
                 { label: "Days(s)", value: "days" },
             ],
         },
@@ -53,7 +53,7 @@ export const MultiValidityCard = ({
             (option) => option.value === plan.validityDurationType
         );
         setSingleValidityType(selectedOption);
-    }   , [plan.validityDurationType]);
+    }, [plan.validityDurationType]);
 
     const findLabelByValue = (value) => {
         const options = singleValidityDurationTypes[0].options;
@@ -124,7 +124,7 @@ export const MultiValidityCard = ({
                     <h5 className="mb-0 fs-16"> {plan.validityDuration} {findLabelByValue(plan.validityDurationType)} <span className="text-success">₹{plan.price}</span>  {plan.isPromoted && (<span className="badge bg-success-subtle text-success">Promoted</span>)}</h5>
 
                     {isEditing && (<div className='mt-3'>
-                        <hr/>
+                        <hr />
                         <Row>
                             <Col lg={8}>
                                 <div className="mt-3">
@@ -184,7 +184,7 @@ export const MultiValidityCard = ({
                                                     name="price"
                                                     value={plan.price || 0}
                                                 />
-                                              
+
                                             </div>
                                         </div>
                                     </Col>

@@ -25,6 +25,7 @@ import Select from "react-select";
 import { MultiValidityCard } from "./MultiValidityCard";
 import { Link } from "react-router-dom";
 import { cloneDeep } from "lodash";
+import Flatpickr from "react-flatpickr";
 
 
 const CreateCourse = () => {
@@ -49,6 +50,16 @@ const CreateCourse = () => {
         effectivePrice: 0,
         isPromoted: false,
         isEditing: true,
+    }]);
+    const [categoryMappings, setCategoryMappings] = useState([{
+        categoryId: null,
+        categoryName: null,
+        subcategories: [
+            {
+                subCategoryId: null,
+                subCategoryName: null,
+            }
+        ]
     }]);
     // console.log(courseValidityType);
 
@@ -99,7 +110,7 @@ const CreateCourse = () => {
             options: [
                 { label: "Months(s)", value: "months" },
                 { label: "Years(s)", value: "years" },
-                { label: "Weeks(s)", value: "weeks" },
+                // { label: "Weeks(s)", value: "weeks" },
                 { label: "Days(s)", value: "days" },
             ],
         },
@@ -206,6 +217,29 @@ const CreateCourse = () => {
             }
         )
         setMultiValidityPlansData(copyMultiValidityPlansData)
+    }
+
+    const onAddAnotherCategoryHandler = () => {
+        let copyCategoryMappings = cloneDeep(categoryMappings);
+        copyCategoryMappings.push(
+            {
+                categoryId: null,
+                categoryName: null,
+                subcategories: [
+                    {
+                        subCategoryId: null,
+                        subCategoryName: null,
+                    }
+                ]
+            }
+        )
+        setCategoryMappings(copyCategoryMappings)
+    }
+
+    const onRemovedCategoryHandler = (index) => {
+        let copyCategoryMappings = cloneDeep(categoryMappings);
+        copyCategoryMappings.splice(index, 1);
+        setCategoryMappings(copyCategoryMappings)
     }
 
     //Dropzone file upload
@@ -402,45 +436,68 @@ const CreateCourse = () => {
                                                                     </div>
                                                                 </Col>
                                                                 <Col lg={12}>
-                                                                    <div className="mb-3">
+                                                                    <div className="">
                                                                         <Label className="form-label" htmlFor="project-thumbnail-img">Thumbnail Image</Label>
                                                                         <Input className="form-control" id="project-thumbnail-img" type="file" accept="image/png, image/gif, image/jpeg" />
                                                                     </div>
                                                                 </Col>
                                                             </Row>
+                                                            {
+                                                                categoryMappings.map((mapping, index) => (
+                                                                    <div className="mb-3 mt-3 mb-lg-0" key={index}>
+                                                                        <Row >
+                                                                            <Col lg={5}>
+                                                                                <div className="mb-3 mb-lg-0">
+                                                                                    <Label htmlFor="choices-Category-input" className="form-label">Category</Label>
+                                                                                    <Select
+                                                                                        value={category}
+                                                                                        onChange={(category) => {
+                                                                                            setCategory(category);
+                                                                                        }}
+                                                                                        options={courseCategory}
+                                                                                        id="choices-single-default"
+                                                                                        className="js-example-basic-single mb-0"
+                                                                                        name="category"
+                                                                                    />
+                                                                                </div>
+                                                                            </Col>
+                                                                            <Col lg={5}>
+                                                                                <div className="mb-3 mb-lg-0">
+                                                                                    <Label htmlFor="choices-SubCategory-input" className="form-label">Sub Category</Label>
+
+                                                                                    <Select
+                                                                                        value={subCategory}
+                                                                                        onChange={(subCategory) => {
+                                                                                            setSubCategory(subCategory);
+                                                                                        }}
+                                                                                        options={courseSubCategory}
+                                                                                        id="choices-single-default"
+                                                                                        className="js-example-basic-single mb-0"
+                                                                                        name="subCategory"
+                                                                                    />
+                                                                                </div>
+                                                                            </Col>
+                                                                            {categoryMappings.length !== 1 && (<Col lg={2}>
+                                                                                <Label />
+                                                                                <div className="mb-3 mb-lg-0">
+                                                                                    <Link to="#" onClick={() => {
+                                                                                        onRemovedCategoryHandler(index);
+                                                                                    }}>
+                                                                                        <i class="ri-delete-bin-line mt-3" ></i>
+                                                                                    </Link>
+                                                                                </div>
+                                                                            </Col>)}
+                                                                        </Row>
+                                                                    </div>
+                                                                ))
+                                                            }
+
                                                             <Row>
                                                                 <Col lg={6}>
-                                                                    <div className="mb-3 mb-lg-0">
-                                                                        <Label htmlFor="choices-Category-input" className="form-label">Category</Label>
-                                                                        <Select
-                                                                            value={category}
-                                                                            onChange={(category) => {
-                                                                                setCategory(category);
-                                                                            }}
-                                                                            options={courseCategory}
-                                                                            id="choices-single-default"
-                                                                            className="js-example-basic-single mb-0"
-                                                                            name="state"
-                                                                        />
+                                                                    <div className="mb-3 mt-3 mb-lg-0">
+                                                                        <p><Link to="#" className="link-info" onClick={onAddAnotherCategoryHandler}><i class="ri-add-circle-fill"></i> Add Another Category</Link></p>
                                                                     </div>
                                                                 </Col>
-                                                                <Col lg={6}>
-                                                                    <div className="mb-3 mb-lg-0">
-                                                                        <Label htmlFor="choices-SubCategory-input" className="form-label">Sub Category</Label>
-
-                                                                        <Select
-                                                                            value={subCategory}
-                                                                            onChange={(subCategory) => {
-                                                                                setSubCategory(subCategory);
-                                                                            }}
-                                                                            options={courseSubCategory}
-                                                                            id="choices-single-default"
-                                                                            className="js-example-basic-single mb-0"
-                                                                            name="state"
-                                                                        />
-                                                                    </div>
-                                                                </Col>
-
                                                             </Row>
                                                         </Col>
                                                     </Row>
@@ -486,349 +543,374 @@ const CreateCourse = () => {
                                                         </div>
                                                     </div>
                                                     <div className="mb-3 mt-3">
-                                                    <Row>
-                                                        {/* <Col lg={6}>
+                                                        <Row>
+                                                            {/* <Col lg={6}>
                                                             <div className="mb-3 mb-lg-0">
                                                                 <Label htmlFor="choices-Category-input" className="form-label">Category</Label>
 
                                                             </div>
                                                         </Col> */}
-                                                        
-                                                        <Col lg={10}>
-                                                        <div className="mb-3 mt-3">
-                                                            <Row>
-                                                                <Label htmlFor="choices-coureType-input" className="form-label">Course Type</Label>
-                                                                <Col lg={6}>
-                                                                    <div className="mb-3 mb-lg-0">
-                                                                        <div className="form-check mb-2">
-                                                                            <Input className="form-check-input" type="radio" name="flexRadioDefault" id="paidCourse" defaultChecked />
-                                                                            <Label className="form-check-label" htmlFor="paidCourse">
-                                                                                Paid Course
-                                                                            </Label>
-                                                                        </div>
-                                                                    </div>
-                                                                </Col>
-                                                                <Col lg={6}>
-                                                                    <div className="mb-3 mb-lg-0">
-                                                                        <div className="form-check">
-                                                                            <Input className="form-check-input" type="radio" name="flexRadioDefault" id="freeCourse" />
-                                                                            <Label className="form-check-label" htmlFor="freeCourse">
-                                                                                Free Course
-                                                                            </Label>
-                                                                        </div>
-                                                                    </div>
-                                                                </Col>
-                                                            </Row>
-                                                            </div>
-                                                            <div className="mb-2 mt-3">
-                                                            <Row>
-                                                                <Col lg={8}>
-                                                                    <div className="mb-3 mb-lg-0">
-                                                                        <Label htmlFor="select-course-duration-input" className="form-label">Course Duration Type</Label>
-                                                                        <Select
-                                                                            value={courseValidityType}
-                                                                            onChange={(courseValidityType) => {
-                                                                                setCourseValidityType(courseValidityType);
-                                                                            }}
-                                                                            options={courseDurationTypes}
-                                                                            id="select-course-duration-input"
-                                                                            className="js-example-basic-single mb-0"
-                                                                            name="courseDurationType"
-                                                                        />
-                                                                    </div>
-                                                                </Col>
-                                                            </Row>
-                                                            </div>
-                                                            {/* Single Validity Block */}
-                                                            {courseValidityType && courseValidityType.value === "SingleValidity" && (
-                                                                <>
+
+                                                            <Col lg={10}>
+                                                                <div className="mb-3 mt-3">
                                                                     <Row>
-                                                                        <Col lg={5}>
-                                                                            <div className="mt-3">
-                                                                                <div className="input-group mb-3">
-                                                                                    <Input
-                                                                                        type="number"
-                                                                                        className="form-control"
-                                                                                        id="singleValidityDuration"
-                                                                                        // placeholder="Enter Stocks"
-                                                                                        name="singleValidityDuration"
-                                                                                    // value={validation.values.stock || ""}
-                                                                                    // onBlur={validation.handleBlur}
-                                                                                    // onChange={validation.handleChange}
-                                                                                    // invalid={validation.errors.stock && validation.touched.stock ? true : false}
-                                                                                    />
+                                                                        <Label htmlFor="choices-coureType-input" className="form-label">Course Type</Label>
+                                                                        <Col lg={6}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <div className="form-check mb-2">
+                                                                                    <Input className="form-check-input" type="radio" name="flexRadioDefault" id="paidCourse" defaultChecked />
+                                                                                    <Label className="form-check-label" htmlFor="paidCourse">
+                                                                                        Paid Course
+                                                                                    </Label>
                                                                                 </div>
                                                                             </div>
                                                                         </Col>
-                                                                        <Col lg={3} >
-                                                                            <div className="mt-3 mb-3 mb-lg-0">
+                                                                        <Col lg={6}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <div className="form-check">
+                                                                                    <Input className="form-check-input" type="radio" name="flexRadioDefault" id="freeCourse" />
+                                                                                    <Label className="form-check-label" htmlFor="freeCourse">
+                                                                                        Free Course
+                                                                                    </Label>
+                                                                                </div>
+                                                                            </div>
+                                                                        </Col>
+                                                                    </Row>
+                                                                </div>
+                                                                <div className="mb-2 mt-3">
+                                                                    <Row>
+                                                                        <Col lg={8}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <Label htmlFor="select-course-duration-input" className="form-label">Course Duration Type</Label>
                                                                                 <Select
-                                                                                    value={singleValidityType}
-                                                                                    onChange={(singleValidityType) => {
-                                                                                        setSingleValidityType(singleValidityType);
+                                                                                    value={courseValidityType}
+                                                                                    onChange={(courseValidityType) => {
+                                                                                        setCourseValidityType(courseValidityType);
                                                                                     }}
-                                                                                    options={singleValidityDurationTypes}
+                                                                                    options={courseDurationTypes}
                                                                                     id="select-course-duration-input"
                                                                                     className="js-example-basic-single mb-0"
-                                                                                    name="singleValidityDurationType"
+                                                                                    name="courseDurationType"
                                                                                 />
                                                                             </div>
                                                                         </Col>
                                                                     </Row>
-                                                                    <Row>
-                                                                        <Col lg={8}>
-                                                                            <Row>
-                                                                                <Col sm={4}>
-                                                                                    <div className="mb-3">
-                                                                                        <label
-                                                                                            className="form-label"
-                                                                                            htmlFor="course-price-input"
-                                                                                        >
-                                                                                            Price
-                                                                                        </label>
-                                                                                        <div className="input-group mb-3">
-                                                                                            <span
-                                                                                                className="input-group-text"
-                                                                                                id="course-price-addon"
-                                                                                            >
-                                                                                                ₹
-                                                                                            </span>
-                                                                                            <Input
-                                                                                                type="text"
-                                                                                                className="form-control"
-                                                                                                id="course-price-input"
-                                                                                                placeholder="Enter price"
-                                                                                                name="price"
-                                                                                                aria-label="Price"
-                                                                                                aria-describedby="course-price-addon"
-                                                                                            // value={validation.values.price || ""}
-                                                                                            // onBlur={validation.handleBlur}
-                                                                                            // onChange={validation.handleChange}
-                                                                                            // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                            />
-                                                                                            {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </Col>
-                                                                                <Col sm={4}>
-                                                                                    <div className="mb-3">
-                                                                                        <label
-                                                                                            className="form-label"
-                                                                                            htmlFor="course-discount-input"
-                                                                                        >
-                                                                                            Discount
-                                                                                        </label>
-                                                                                        <div className="input-group mb-3">
-                                                                                            <span
-                                                                                                className="input-group-text"
-                                                                                                id="course-discount-addon"
-                                                                                            >
-                                                                                                ₹
-                                                                                            </span>
-                                                                                            <Input
-                                                                                                type="text"
-                                                                                                className="form-control"
-                                                                                                id="course-discount-input"
-                                                                                                placeholder="Enter discount"
-                                                                                                name="discount"
-                                                                                                aria-label="Discount"
-                                                                                                aria-describedby="course-discount-addon"
-                                                                                            // value={validation.values.price || ""}
-                                                                                            // onBlur={validation.handleBlur}
-                                                                                            // onChange={validation.handleChange}
-                                                                                            // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                            />
-                                                                                            {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </Col>
-                                                                                <Col sm={4}>
-                                                                                    <div className="mb-3">
-                                                                                        <label
-                                                                                            className="form-label"
-                                                                                            htmlFor="course-effictive-price-input"
-                                                                                        >
-                                                                                            Effective Price
-                                                                                        </label>
-                                                                                        <div className="input-group mb-3">
-                                                                                            <span
-                                                                                                className="input-group-text"
-                                                                                                id="course-effictive-price-addon"
-                                                                                            >
-                                                                                                ₹
-                                                                                            </span>
-                                                                                            <Input
-                                                                                                type="text"
-                                                                                                className="form-control "
-                                                                                                id="course-effictive-price-input"
-                                                                                                placeholder="Enter Effective price"
-                                                                                                name="effectivePrice"
-                                                                                                aria-label="Effective Price"
-                                                                                                aria-describedby="course-effictive-price-addon"
-                                                                                            // value={validation.values.price || ""}
-                                                                                            // onBlur={validation.handleBlur}
-                                                                                            // onChange={validation.handleChange}
-                                                                                            // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                            />
-                                                                                            {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </Col>
-                                                                            </Row>
-                                                                        </Col>
-
-                                                                    </Row>
-                                                                </>
-                                                            )}
-
-                                                            {courseValidityType && courseValidityType.value === "MultipleValidity" && (<>
-                                                                <div className="mt-3" >
-                                                                    <Row>
-                                                                        <Col lg={8}>
-                                                                            {MultiValidityPlansData.map((plan, index) => (
-                                                                                <MultiValidityCard
-                                                                                    key={index}
-                                                                                    plan={plan}
-                                                                                    isEditing={plan.isEditing}
-                                                                                    onEdit={onEditMultiValidityHandler}
-                                                                                    onCancel={onCancelMultiValidityHandler}
-                                                                                    onDelete={onDeleteMultiValidityHandler}
-                                                                                    onSave={onSaveMultiValidityHandler}
-                                                                                />))
-                                                                            }
-                                                                        </Col>
-                                                                    </Row>
-                                                                    <Row>
-                                                                        <Col lg={8}>
-                                                                            <p><Link to="#" className="link-info" onClick={onAddValidityOptionHandler}>+ Add Another Validity Option</Link></p>
-                                                                        </Col>
-                                                                    </Row>
-
                                                                 </div>
-                                                            </>)}
-
-                                                            {courseValidityType && courseValidityType.value === "LifetimeValidity" && (
-                                                                 <div className="mt-3 mb-3" >
-                                                                <Row>
-                                                                    <Col lg={8}>
+                                                                {/* Single Validity Block */}
+                                                                {courseValidityType && courseValidityType.value === "SingleValidity" && (
+                                                                    <>
                                                                         <Row>
-                                                                            <Col sm={4}>
-                                                                                <div className="mb-3">
-                                                                                    <label
-                                                                                        className="form-label"
-                                                                                        htmlFor="course-price-input"
-                                                                                    >
-                                                                                        Price
-                                                                                    </label>
+                                                                            <Col lg={5}>
+                                                                                <div className="mt-3">
                                                                                     <div className="input-group mb-3">
-                                                                                        <span
-                                                                                            className="input-group-text"
-                                                                                            id="course-price-addon"
-                                                                                        >
-                                                                                            ₹
-                                                                                        </span>
                                                                                         <Input
-                                                                                            type="text"
+                                                                                            type="number"
                                                                                             className="form-control"
-                                                                                            id="course-price-input"
-                                                                                            placeholder="Enter price"
-                                                                                            name="price"
-                                                                                            aria-label="Price"
-                                                                                            aria-describedby="course-price-addon"
-                                                                                        // value={validation.values.price || ""}
+                                                                                            id="singleValidityDuration"
+                                                                                            // placeholder="Enter Stocks"
+                                                                                            name="singleValidityDuration"
+                                                                                        // value={validation.values.stock || ""}
                                                                                         // onBlur={validation.handleBlur}
                                                                                         // onChange={validation.handleChange}
-                                                                                        // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                        // invalid={validation.errors.stock && validation.touched.stock ? true : false}
                                                                                         />
-                                                                                        {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
                                                                                     </div>
                                                                                 </div>
                                                                             </Col>
-                                                                            <Col sm={4}>
-                                                                                <div className="mb-3">
-                                                                                    <label
-                                                                                        className="form-label"
-                                                                                        htmlFor="course-discount-input"
-                                                                                    >
-                                                                                        Discount
-                                                                                    </label>
-                                                                                    <div className="input-group mb-3">
-                                                                                        <span
-                                                                                            className="input-group-text"
-                                                                                            id="course-discount-addon"
-                                                                                        >
-                                                                                            ₹
-                                                                                        </span>
-                                                                                        <Input
-                                                                                            type="text"
-                                                                                            className="form-control"
-                                                                                            id="course-discount-input"
-                                                                                            placeholder="Enter discount"
-                                                                                            name="discount"
-                                                                                            aria-label="Discount"
-                                                                                            aria-describedby="course-discount-addon"
-                                                                                        // value={validation.values.price || ""}
-                                                                                        // onBlur={validation.handleBlur}
-                                                                                        // onChange={validation.handleChange}
-                                                                                        // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                        />
-                                                                                        {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </Col>
-                                                                            <Col sm={4}>
-                                                                                <div className="mb-3">
-                                                                                    <label
-                                                                                        className="form-label"
-                                                                                        htmlFor="course-effictive-price-input"
-                                                                                    >
-                                                                                        Effective Price
-                                                                                    </label>
-                                                                                    <div className="input-group mb-3">
-                                                                                        <span
-                                                                                            className="input-group-text"
-                                                                                            id="course-effictive-price-addon"
-                                                                                        >
-                                                                                            ₹
-                                                                                        </span>
-                                                                                        <Input
-                                                                                            type="text"
-                                                                                            className="form-control "
-                                                                                            id="course-effictive-price-input"
-                                                                                            placeholder="Enter Effective price"
-                                                                                            name="effectivePrice"
-                                                                                            aria-label="Effective Price"
-                                                                                            aria-describedby="course-effictive-price-addon"
-                                                                                        // value={validation.values.price || ""}
-                                                                                        // onBlur={validation.handleBlur}
-                                                                                        // onChange={validation.handleChange}
-                                                                                        // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                        />
-                                                                                        {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                    </div>
+                                                                            <Col lg={3} >
+                                                                                <div className="mt-3 mb-3 mb-lg-0">
+                                                                                    <Select
+                                                                                        value={singleValidityType}
+                                                                                        onChange={(singleValidityType) => {
+                                                                                            setSingleValidityType(singleValidityType);
+                                                                                        }}
+                                                                                        options={singleValidityDurationTypes}
+                                                                                        id="select-course-duration-input"
+                                                                                        className="js-example-basic-single mb-0"
+                                                                                        name="singleValidityDurationType"
+                                                                                    />
                                                                                 </div>
                                                                             </Col>
                                                                         </Row>
-                                                                    </Col>
+                                                                        <Row>
+                                                                            <Col lg={8}>
+                                                                                <Row>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-price-input"
+                                                                                            >
+                                                                                                Price
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-price-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control"
+                                                                                                    id="course-price-input"
+                                                                                                    placeholder="Enter price"
+                                                                                                    name="price"
+                                                                                                    aria-label="Price"
+                                                                                                    aria-describedby="course-price-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-discount-input"
+                                                                                            >
+                                                                                                Discount
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-discount-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control"
+                                                                                                    id="course-discount-input"
+                                                                                                    placeholder="Enter discount"
+                                                                                                    name="discount"
+                                                                                                    aria-label="Discount"
+                                                                                                    aria-describedby="course-discount-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-effictive-price-input"
+                                                                                            >
+                                                                                                Effective Price
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-effictive-price-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control "
+                                                                                                    id="course-effictive-price-input"
+                                                                                                    placeholder="Enter Effective price"
+                                                                                                    name="effectivePrice"
+                                                                                                    aria-label="Effective Price"
+                                                                                                    aria-describedby="course-effictive-price-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                </Row>
+                                                                            </Col>
 
-                                                                </Row>
-                                                                </div>
-                                                            )}
+                                                                        </Row>
+                                                                    </>
+                                                                )}
 
-                                                        </Col>
-                                                    </Row>
+                                                                {courseValidityType && courseValidityType.value === "MultipleValidity" && (<>
+                                                                    <div className="mt-3" >
+                                                                        <Row>
+                                                                            <Col lg={8}>
+                                                                                {MultiValidityPlansData.map((plan, index) => (
+                                                                                    <MultiValidityCard
+                                                                                        key={index}
+                                                                                        plan={plan}
+                                                                                        isEditing={plan.isEditing}
+                                                                                        onEdit={onEditMultiValidityHandler}
+                                                                                        onCancel={onCancelMultiValidityHandler}
+                                                                                        onDelete={onDeleteMultiValidityHandler}
+                                                                                        onSave={onSaveMultiValidityHandler}
+                                                                                    />))
+                                                                                }
+                                                                            </Col>
+                                                                        </Row>
+                                                                        <Row>
+                                                                            <Col lg={8}>
+                                                                                <p><Link to="#" className="link-info" onClick={onAddValidityOptionHandler}><i class="ri-add-circle-fill"></i> Add Another Validity Option</Link></p>
+                                                                            </Col>
+                                                                        </Row>
+
+                                                                    </div>
+                                                                </>)}
+
+                                                                {
+                                                                    courseValidityType && courseValidityType.value === "CourseExpiryDate" && (
+                                                                        <div className="mt-3 mb-3" >
+                                                                            <Row>
+                                                                                <Col lg={8}>
+                                                                                    <Row>
+                                                                                        <Col lg={6}>
+                                                                                            <div>
+                                                                                                <Label className="form-label mb-0">Expiry Date</Label>
+                                                                                                <Flatpickr
+                                                                                                    className="form-control"
+                                                                                                    options={{
+                                                                                                        dateFormat: "d M, Y",
+
+                                                                                                    }}
+                                                                                                />
+                                                                                            </div>
+                                                                                        </Col>
+                                                                                    </Row>
+                                                                                </Col>
+                                                                            </Row>
+                                                                        </div>
+                                                                    )
+                                                                }
+
+                                                                {courseValidityType && (courseValidityType.value === "LifetimeValidity" || courseValidityType.value === "CourseExpiryDate") && (
+                                                                    <div className="mt-3 mb-3" >
+                                                                        <Row>
+                                                                            <Col lg={8}>
+                                                                                <Row>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-price-input"
+                                                                                            >
+                                                                                                Price
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-price-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control"
+                                                                                                    id="course-price-input"
+                                                                                                    placeholder="Enter price"
+                                                                                                    name="price"
+                                                                                                    aria-label="Price"
+                                                                                                    aria-describedby="course-price-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-discount-input"
+                                                                                            >
+                                                                                                Discount
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-discount-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control"
+                                                                                                    id="course-discount-input"
+                                                                                                    placeholder="Enter discount"
+                                                                                                    name="discount"
+                                                                                                    aria-label="Discount"
+                                                                                                    aria-describedby="course-discount-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                    <Col sm={4}>
+                                                                                        <div className="mb-3">
+                                                                                            <label
+                                                                                                className="form-label"
+                                                                                                htmlFor="course-effictive-price-input"
+                                                                                            >
+                                                                                                Effective Price
+                                                                                            </label>
+                                                                                            <div className="input-group mb-3">
+                                                                                                <span
+                                                                                                    className="input-group-text"
+                                                                                                    id="course-effictive-price-addon"
+                                                                                                >
+                                                                                                    ₹
+                                                                                                </span>
+                                                                                                <Input
+                                                                                                    type="text"
+                                                                                                    className="form-control "
+                                                                                                    id="course-effictive-price-input"
+                                                                                                    placeholder="Enter Effective price"
+                                                                                                    name="effectivePrice"
+                                                                                                    aria-label="Effective Price"
+                                                                                                    aria-describedby="course-effictive-price-addon"
+                                                                                                // value={validation.values.price || ""}
+                                                                                                // onBlur={validation.handleBlur}
+                                                                                                // onChange={validation.handleChange}
+                                                                                                // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                />
+                                                                                                {/* {validation.errors.price && validation.touched.price ? (
+                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                            ) : null} */}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                </Row>
+                                                                            </Col>
+
+                                                                        </Row>
+                                                                    </div>
+                                                                )}
+
+                                                            </Col>
+                                                        </Row>
                                                     </div>
                                                 </div>
                                                 <div className="d-flex align-items-start gap-3 mt-4">

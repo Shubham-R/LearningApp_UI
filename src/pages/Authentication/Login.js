@@ -38,7 +38,7 @@ const Login = (props) => {
 
     const [userLogin, setUserLogin] = useState([]);
     const [passwordShow, setPasswordShow] = useState(false);
-
+    const navigate = props.router.navigate;
 
     useEffect(() => {
         if (user && user) {
@@ -50,6 +50,25 @@ const Login = (props) => {
             });
         }
     }, [user]);
+
+    const tempAuthData = {
+        "status": "success",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYyOWYxNWM3NzBhNDcwYTIzMGNjNWQ1YSIsImlhdCI6MTc2MTAxNDgxNywiZXhwIjoxNzY4NzkwODE3fQ.GNu9Vs7Vup5p_XlEhNTKNWpB04y4IjXeENC7txWU01o",
+        "data": {
+            "_id": "629f15c770a470a230cc5d5a",
+            "first_name": "Anurag",
+            "email": "admin@themesbrand.com",
+            "password": "$2a$12$tOmV5oSs.Itd7KZ6IEV3L.kDnDZz9N2TadTrrnu0M/9ktxplL/lzC",
+            "confirm_password": "123456",
+            "changePasswordAt": "2022-06-07T09:06:27.077Z",
+            "skills": [],
+            "__v": 1,
+            "passwordtoken": "2ee488e19e985d36665042e45cd211facac9bc0fc06e8f15bc89805bb34c6f19",
+            "passwordtokenexp": "2025-04-22T09:08:37.387Z",
+            "exp_year": [],
+            "portfolio": []
+        }
+    }
 
     const validation = useFormik({
         // enableReinitialize : use this flag when initial values needs to be changed
@@ -64,7 +83,9 @@ const Login = (props) => {
             password: Yup.string().required("Please Enter Your Password"),
         }),
         onSubmit: (values) => {
-            dispatch(loginUser(values, props.router.navigate));
+            sessionStorage.setItem("authUser", JSON.stringify(tempAuthData));
+            navigate('/dashboard');
+            // dispatch(loginUser(values, props.router.navigate));
         }
     });
 
