@@ -83,9 +83,9 @@ const Login = (props) => {
             password: Yup.string().required("Please Enter Your Password"),
         }),
         onSubmit: (values) => {
-            sessionStorage.setItem("authUser", JSON.stringify(tempAuthData));
-            navigate('/dashboard');
-            // dispatch(loginUser(values, props.router.navigate));
+            // sessionStorage.setItem("authUser", JSON.stringify(tempAuthData));
+            // navigate('/dashboard');
+            dispatch(loginUser(values, props.router.navigate));
         }
     });
 
