@@ -3,23 +3,16 @@ import { Link } from 'react-router-dom';
 import { Dropdown, DropdownMenu, DropdownToggle, Form } from 'reactstrap';
 
 //import images
-import logoSm from "../assets/images/logo-sm.png";
 import logoDark from "../assets/images/logo-dark.png";
 import logoLight from "../assets/images/logo-light.png";
+import logoSm from "../assets/images/logo-sm.png";
 
 //import Components
-import SearchOption from '../Components/Common/SearchOption';
-import LanguageDropdown from '../Components/Common/LanguageDropdown';
-import WebAppsDropdown from '../Components/Common/WebAppsDropdown';
-import MyCartDropdown from '../Components/Common/MyCartDropdown';
-import FullScreenDropdown from '../Components/Common/FullScreenDropdown';
-import NotificationDropdown from '../Components/Common/NotificationDropdown';
 import ProfileDropdown from '../Components/Common/ProfileDropdown';
-import LightDark from '../Components/Common/LightDark';
 
-import { changeSidebarVisibility } from '../slices/thunks';
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from 'reselect';
+import { changeSidebarVisibility } from '../slices/thunks';
 
 const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
     const dispatch = useDispatch();
@@ -28,11 +21,12 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
     const selectDashboardData = createSelector(
         (state) => state.Layout,
         (state) => ({
-            sidebarVisibilitytype: state.sidebarVisibilitytype})
-      );
+            sidebarVisibilitytype: state.sidebarVisibilitytype
+        })
+    );
     // Inside your component
-    const {sidebarVisibilitytype} = useSelector(selectDashboardData);
-    
+    const { sidebarVisibilitytype } = useSelector(selectDashboardData);
+
 
     const [search, setSearch] = useState(false);
     const toogleSearch = () => {
@@ -113,7 +107,7 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
                             </button>
 
 
-                            <SearchOption />
+                            {/* <SearchOption /> */}
                         </div>
 
                         <div className="d-flex align-items-center">
@@ -137,25 +131,25 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass }) => {
                             </Dropdown>
 
                             {/* LanguageDropdown */}
-                            <LanguageDropdown />
+                            {/* <LanguageDropdown /> */}
 
                             {/* WebAppsDropdown */}
-                            <WebAppsDropdown />
+                            {/* <WebAppsDropdown /> */}
 
                             {/* MyCartDropdwon */}
-                            <MyCartDropdown />
+                            {/* <MyCartDropdown /> */}
 
                             {/* FullScreenDropdown */}
-                            <FullScreenDropdown />
+                            {/* <FullScreenDropdown /> */}
 
                             {/* Dark/Light Mode set */}
-                            <LightDark
+                            {/* <LightDark
                                 layoutMode={layoutModeType}
                                 onChangeLayoutMode={onChangeLayoutMode}
-                            />
+                            /> */}
 
                             {/* NotificationDropdown */}
-                            <NotificationDropdown />
+                            {/* <NotificationDropdown /> */}
 
                             {/* ProfileDropdown */}
                             <ProfileDropdown />

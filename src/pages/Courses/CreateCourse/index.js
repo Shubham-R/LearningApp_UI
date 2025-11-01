@@ -1,5 +1,11 @@
+import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 import classnames from "classnames";
-import React, { useState } from 'react';
+import { cloneDeep } from "lodash";
+import React, { useState, useCallback, useEffect } from 'react';
+import Flatpickr from "react-flatpickr";
+import { Link } from "react-router-dom";
+import Select from "react-select";
 import {
     Card,
     CardBody,
@@ -17,15 +23,29 @@ import {
     TabContent,
     TabPane,
 } from "reactstrap";
-import dummyUser from "../../../assets/images/users/user-dummy-img.jpg";
+import { createSelector } from "reselect";
 import BreadCrumb from '../../../Components/Common/BreadCrumb';
-import { CKEditor } from "@ckeditor/ckeditor5-react";
-import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
-import Select from "react-select";
 import { MultiValidityCard } from "./MultiValidityCard";
-import { Link } from "react-router-dom";
-import { cloneDeep } from "lodash";
-import Flatpickr from "react-flatpickr";
+
+import { DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from 'reactstrap';
+//redux
+import { useSelector, useDispatch } from "react-redux";
+//import action
+import {
+    addNewFile as onAddNewFile,
+    addNewFolder as onAddNewFolder,
+    deleteFile as onDeleteFile,
+    deleteFolder as onDeleteFolder,
+    getFiles as onGetFiles,
+    getFolders as onGetFolders,
+    updateFile as onupdateFile,
+    updateFolder as onupdateFolder
+} from "../../../slices/thunks";
+
+// Formik
+import { useFormik } from "formik";
+import * as Yup from "yup";
+
 
 
 const CreateCourse = () => {
@@ -61,6 +81,286 @@ const CreateCourse = () => {
             }
         ]
     }]);
+
+
+    const dispatch = useDispatch();
+
+    const selectLayoutState = (state) => state.FileManager;
+    const selectLayoutProperties = createSelector(
+        selectLayoutState,
+        (state) => ({
+            folders: state.folders,
+            files: state.files,
+        })
+    );
+    // Inside your component
+    const {
+        folders, files
+    } = useSelector(selectLayoutProperties);
+
+
+    const [deleteModal, setDeleteModal] = useState(false);
+
+    const [deleteAlt, setDeleteAlt] = useState(false);
+
+    // Folders
+    const [folder, setFolder] = useState(null);
+    const [modalFolder, setModalFolder] = useState(false);
+    const [isEdit, setIsEdit] = useState(false);
+
+    useEffect(() => {
+        dispatch(onGetFolders());
+    }, [dispatch]);
+
+    useEffect(() => {
+        setFolder(folders);
+    }, [folders]);
+
+    const folderToggle = useCallback(() => {
+        if (modalFolder) {
+            setModalFolder(false);
+            setFolder(null);
+        } else {
+            setModalFolder(true);
+        }
+    }, [modalFolder]);
+
+    // Update Folder
+    const handleFolderClick = useCallback((arg) => {
+        const folder = arg;
+
+        setFolder({
+            id: folder.id,
+            folderName: folder.folderName,
+            folderFile: folder.folderFile,
+            size: folder.size,
+        });
+
+        setIsEdit(true);
+        folderToggle();
+    }, [folderToggle]);
+
+    // Add Folder
+    const handleFolderClicks = () => {
+        setFolder("");
+        setModalFolder(!modalFolder);
+        setIsEdit(false);
+        folderToggle();
+    };
+
+    // Delete Folder
+    const onClickFolderDelete = (folder) => {
+        setFolder(folder);
+        setDeleteModal(true);
+    };
+
+    const handleDeleteFolder = () => {
+
+        if (deleteAlt) {
+            if (folder) {
+                dispatch(onDeleteFolder(folder.id));
+                setDeleteModal(false);
+                setDeleteAlt(false);
+            }
+        } else {
+            if (file) {
+                dispatch(onDeleteFile(file.id));
+                setDeleteModal(false);
+                sidebarClose("file-detail-show");
+            }
+        }
+
+    };
+
+    // Files
+    const [file, setFile] = useState(null);
+    const [modalFile, setModalFile] = useState(false);
+
+
+    const [fileList, setFileList] = useState(files);
+
+    useEffect(() => {
+        dispatch(onGetFiles());
+    }, [dispatch]);
+
+    useEffect(() => {
+        setFile(files);
+        setFileList(files);
+    }, [files]);
+
+    const fileToggle = useCallback(() => {
+        if (modalFile) {
+            setModalFile(false);
+            setFile(null);
+        } else {
+            setModalFile(true);
+        }
+    }, [modalFile]);
+
+    // Update File
+    const handleFileClick = useCallback((arg) => {
+        const file = arg;
+
+        setFile({
+            id: file.id,
+            fileName: file.fileName,
+            fileItem: file.fileItem,
+            size: file.size,
+        });
+
+        setIsEdit(true);
+        fileToggle();
+    }, [fileToggle]);
+
+    // Add File
+    const handleFileClicks = () => {
+        setFile("");
+        setModalFile(!modalFile);
+        setIsEdit(false);
+        fileToggle();
+    };
+
+    // Delete File
+    const onClickFileDelete = (file) => {
+        setFile(file);
+        setDeleteModal(true);
+    };
+
+
+    const [sidebarData, setSidebarData] = useState("");
+
+    const [filterActive, setFilterActive] = useState("");
+
+    const fileCategory = (e, ele) => {
+        setFilterActive(ele);
+        document.getElementById("folder-list").style.display = "none";
+        setFileList(
+            files.filter((item) => item.fileType === e)
+        );
+    };
+
+
+    // SideBar Open
+    function sidebarOpen(value) {
+        const element = document.getElementsByTagName('body')[0];
+        element.classList.add(value);
+    }
+
+    // SideBar Close
+    function sidebarClose(value) {
+        const element = document.getElementsByTagName('body')[0];
+        element.classList.remove(value);
+    }
+
+    useEffect(() => {
+        sidebarOpen("file-detail-show");
+    }, []);
+
+    const favouriteBtn = (ele) => {
+        if (ele.closest("button").classList.contains("active")) {
+            ele.closest("button").classList.remove("active");
+        } else {
+            ele.closest("button").classList.add("active");
+        }
+    };
+
+    const fileSidebar = () => {
+        document.getElementById("folder-overview").style.display = "none";
+        document.getElementById("file-overview").style.display = "block";
+    };
+
+    // Folder validation
+    const folderValidation = useFormik({
+        // enableReinitialize : use this flag when initial values needs to be changed
+        enableReinitialize: true,
+
+        initialValues: {
+            folderName: (folder && folder.folderName) || '',
+            folderFile: (folder && folder.folderFile) || '',
+            size: (folder && folder.size) || '',
+        },
+        validationSchema: Yup.object({
+            folderName: Yup.string().required("Please Enter Folder Name"),
+        }),
+        onSubmit: (values) => {
+            if (isEdit) {
+                const updateFolder = {
+                    id: folder ? folder.id : 0,
+                    folderName: values.folderName,
+                    folderFile: values.folderFile,
+                    size: values.size
+                };
+                // save edit Folder
+                dispatch(onupdateFolder(updateFolder));
+                folderValidation.resetForm();
+
+            } else {
+                const newFolder = {
+                    id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
+                    folderName: values["folderName"],
+                    folderFile: "0",
+                    size: "0"
+                };
+                // save new Folder
+                dispatch(onAddNewFolder(newFolder));
+                folderValidation.resetForm();
+            }
+            folderToggle();
+        },
+    });
+
+
+    const dateFormat = () => {
+        let d = new Date(),
+            months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return ((d.getDate() + ' ' + months[d.getMonth()] + ', ' + d.getFullYear()).toString());
+    };
+
+
+    // File validation
+    const fileValidation = useFormik({
+        // enableReinitialize : use this flag when initial values needs to be changed
+        enableReinitialize: true,
+
+        initialValues: {
+            fileName: (file && file.fileName) || '',
+            fileItem: (file && file.fileItem) || '',
+            size: (file && file.size) || '',
+        },
+        validationSchema: Yup.object({
+            fileName: Yup.string().required("Please Enter File Name"),
+        }),
+        onSubmit: (values) => {
+            if (isEdit) {
+                const updateFile = {
+                    id: file ? file.id : 0,
+                    fileName: values.fileName,
+                    fileItem: values.fileItem,
+                    size: values.size
+                };
+                // save edit File
+                dispatch(onupdateFile(updateFile));
+                fileValidation.resetForm();
+
+            } else {
+                const newFile = {
+                    id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
+                    fileName: values.fileName + ".txt",
+                    fileItem: "0",
+                    icon: "ri-file-text-fill",
+                    iconClass: "secondary",
+                    fileType: "Documents",
+                    size: "0 KB",
+                    createDate: dateFormat(),
+                };
+                // save new File
+                dispatch(onAddNewFile(newFile));
+                fileValidation.resetForm();
+            }
+            fileToggle();
+        },
+    });
+
     // console.log(courseValidityType);
 
     // let MultiValidityPlansData = [
@@ -939,20 +1239,85 @@ const CreateCourse = () => {
 
                                             <TabPane tabId={3}>
                                                 <div>
-                                                    <div className="text-center">
-                                                        <div className="mb-4">
-                                                            <lord-icon
-                                                                src="https://cdn.lordicon.com/lupuorrc.json"
-                                                                trigger="loop"
-                                                                colors="primary:#0ab39c,secondary:#405189"
-                                                                style={{ width: "120px", height: "120px" }}
-                                                            ></lord-icon>
-                                                        </div>
-                                                        {/* <h5>Well Done !</h5> */}
-                                                        <p className="text-muted">
-                                                            3rd tab content goes here.
-                                                        </p>
-                                                    </div>
+                                                    <Row>
+                                                        <Col lg={9}>
+                                                            <div className="file-manager-content w-100 p-3 py-0">
+                                                                <div className="mx-n3 pt-4 px-4 file-manager-content-scroll overflow-x-hidden overflow-y-auto">
+                                                                    <div id="folder-list" className="mb-2">
+                                                                        <Row className="justify-content-beetwen g-2 mb-4">
+
+                                                                            <Col>
+                                                                                <div className="d-flex align-items-center">
+                                                                                    <div className="flex-shrink-0 me-2 d-block d-lg-none">
+                                                                                        <button type="button" className="btn btn-soft-success btn-icon btn-sm fs-16 file-menu-btn">
+                                                                                            <i className="ri-menu-2-fill align-bottom"></i>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <div className="flex-grow-1">
+                                                                                        <h5 className="fs-16 mb-0">Content</h5>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </Col>
+                                                                            <Col className="col-auto">
+                                                                                <div className="d-flex gap-2 align-items-start">
+                                                                                    <select className="form-control" data-choices data-choices-search-false name="choices-single-default" id="file-type">
+                                                                                        <option value="">File Type</option>
+                                                                                        <option value="All" defaultValue>All</option>
+                                                                                        <option value="Video">Video</option>
+                                                                                        <option value="Images">Images</option>
+                                                                                        <option value="Music">Music</option>
+                                                                                        <option value="Documents">Documents</option>
+                                                                                    </select>
+
+                                                                                    {/* <button className="btn btn-success text-nowrap create-folder-modal flex-shrink-0" onClick={() => handleFolderClicks()}><i className="ri-add-line align-bottom me-1"></i> Create Folders</button> */}
+                                                                                </div>
+                                                                            </Col>
+                                                                        </Row>
+
+                                                                        <Row id="folderlist-data">
+
+                                                                            {(folders || []).map((item, key) => (
+                                                                                <Col xxl={12} className="col-6 folder-card" key={key}>
+                                                                                    <Card className="bg-light shadow-none" id={"folder-" + item.id}>
+                                                                                        <CardBody>
+                                                                                            <div className="d-flex">
+                                                                                                <div className="form-check form-check-danger mb-3 fs-15 flex-grow-1">
+                                                                                                    <input className="form-check-input" type="checkbox" value="" id={"folderlistCheckbox_" + item.id} />
+                                                                                                    <label className="form-check-label" htmlFor={"folderlistCheckbox_" + item.id}></label>
+                                                                                                </div>
+
+                                                                                                <UncontrolledDropdown>
+                                                                                                    <DropdownToggle tag="button" className="btn btn-ghost-primary btn-icon btn-sm dropdown">
+                                                                                                        <i className="ri-more-2-fill fs-16 align-bottom" />
+                                                                                                    </DropdownToggle>
+                                                                                                    <DropdownMenu className="dropdown-menu-end">
+                                                                                                        <DropdownItem className="view-item-btn">Open</DropdownItem>
+                                                                                                        <DropdownItem className="edit-folder-list" onClick={() => handleFolderClick(item)}>Rename</DropdownItem>
+                                                                                                        <DropdownItem onClick={() => { onClickFolderDelete(item); setDeleteAlt(true); }}>Delete</DropdownItem>
+                                                                                                    </DropdownMenu>
+                                                                                                </UncontrolledDropdown>
+
+                                                                                            </div>
+
+                                                                                            <div className="text-center">
+                                                                                                <div className="">
+                                                                                                    <i className="ri-folder-2-fill align-bottom text-warning display-5"></i>
+                                                                                                </div>
+                                                                                                <h6 className="fs-15 folder-name">{item.folderName}</h6>
+                                                                                            </div>
+                                                                                            <div className="hstack mt-4 text-muted">
+                                                                                                <span className="me-auto"><b>{item.folderFile}</b> Files</span>
+                                                                                                <span><b>{item.size}</b>GB</span>
+                                                                                            </div>
+                                                                                        </CardBody>
+                                                                                    </Card>
+                                                                                </Col>))}
+                                                                        </Row>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </Col>
+                                                    </Row>
                                                 </div>
                                                 <div className="d-flex align-items-start gap-3 mt-4">
                                                     <button
@@ -963,7 +1328,7 @@ const CreateCourse = () => {
                                                         }}
                                                     >
                                                         <i className="ri-arrow-left-line label-icon align-middle fs-16 me-2"></i>{" "}
-                                                        Back to General
+                                                        Back to Edit Price
                                                     </button>
                                                     <button
                                                         type="button"

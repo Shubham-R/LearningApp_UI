@@ -13,7 +13,7 @@ import * as Yup from "yup";
 import { useFormik } from "formik";
 
 // action
-import { userForgetPassword } from "../../slices/thunks";
+// import { userForgetPassword } from "../../slices/thunks";
 
 // import images
 // import profile from "../../assets/images/bg.png";

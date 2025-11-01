@@ -1,26 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardBody, Col, Container, Input, Label, Row, Button, Form, FormFeedback, Alert, Spinner } from 'reactstrap';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Button, Card, CardBody, Col, Container, Form, FormFeedback, Input, Label, Row, Spinner } from 'reactstrap';
 import ParticlesAuth from "../AuthenticationInner/ParticlesAuth";
-
-//redux
-import { useSelector, useDispatch } from "react-redux";
-
-import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import withRouter from "../../Components/Common/withRouter";
-// Formik validation
-import * as Yup from "yup";
 import { useFormik } from "formik";
-
-// actions
-import { loginUser, socialLogin, resetLoginFlag } from "../../slices/thunks";
-
-import logoLight from "../../assets/images/logo-light.png";
+import * as Yup from "yup";
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { createSelector } from 'reselect';
-//import images
+import { authenticateAPI } from '../../api/authAPI';
+import { auth } from '../../helpers/firebase';
 
 const Login = (props) => {
     const dispatch = useDispatch();
-
     const selectLayoutState = (state) => state;
     const loginpageData = createSelector(
         selectLayoutState,
@@ -31,76 +22,183 @@ const Login = (props) => {
             errorMsg: state.Login.errorMsg,
         })
     );
-    // Inside your component
+
     const {
-        user, error, loading, errorMsg
+        errorMsg
     } = useSelector(loginpageData);
 
-    const [userLogin, setUserLogin] = useState([]);
-    const [passwordShow, setPasswordShow] = useState(false);
+    const [isSignInWithNumber, setIsSignInWithNumber] = useState(false);
+    const [confirmationResult, setConfirmationResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
     const navigate = props.router.navigate;
 
     useEffect(() => {
-        if (user && user) {
-            const updatedUserData = process.env.REACT_APP_DEFAULTAUTH === "firebase" ? user.multiFactor.user.email : user.email;
-            const updatedUserPassword = process.env.REACT_APP_DEFAULTAUTH === "firebase" ? "" : user.confirm_password;
-            setUserLogin({
-                email: updatedUserData,
-                password: updatedUserPassword
-            });
-        }
-    }, [user]);
+        return () => {
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+                window.recaptchaVerifier = null;
+            }
+        };
+    }, []);
 
-    const tempAuthData = {
-        "status": "success",
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYyOWYxNWM3NzBhNDcwYTIzMGNjNWQ1YSIsImlhdCI6MTc2MTAxNDgxNywiZXhwIjoxNzY4NzkwODE3fQ.GNu9Vs7Vup5p_XlEhNTKNWpB04y4IjXeENC7txWU01o",
-        "data": {
-            "_id": "629f15c770a470a230cc5d5a",
-            "first_name": "Anurag",
-            "email": "admin@themesbrand.com",
-            "password": "$2a$12$tOmV5oSs.Itd7KZ6IEV3L.kDnDZz9N2TadTrrnu0M/9ktxplL/lzC",
-            "confirm_password": "123456",
-            "changePasswordAt": "2022-06-07T09:06:27.077Z",
-            "skills": [],
-            "__v": 1,
-            "passwordtoken": "2ee488e19e985d36665042e45cd211facac9bc0fc06e8f15bc89805bb34c6f19",
-            "passwordtokenexp": "2025-04-22T09:08:37.387Z",
-            "exp_year": [],
-            "portfolio": []
+
+    const setupRecaptcha = () => {
+        try {
+            if (!window.recaptchaVerifier) {
+                console.log('Setting up reCAPTCHA...');
+                window.recaptchaVerifier = new RecaptchaVerifier(
+                    auth,
+                    'recaptcha-container',
+                    {
+                        size: 'invisible',
+                        callback: (response) => {
+                            console.log('reCAPTCHA verified successfully');
+                        },
+                        'expired-callback': () => {
+                            console.log('reCAPTCHA expired');
+                        }
+                    }
+                );
+                console.log('reCAPTCHA setup complete');
+            }
+        } catch (error) {
+            console.error('Error setting up reCAPTCHA:', error);
+            throw error;
         }
-    }
+    };
 
     const validation = useFormik({
-        // enableReinitialize : use this flag when initial values needs to be changed
         enableReinitialize: true,
-
         initialValues: {
-            email: userLogin.email || "admin@themesbrand.com" || '',
-            password: userLogin.password || "123456" || '',
+            orgID: "",
+            mobile: "",
         },
-        validationSchema: Yup.object({
-            email: Yup.string().required("Please Enter Your Email"),
-            password: Yup.string().required("Please Enter Your Password"),
+        validationSchema: Yup.object().shape({
+            orgID: Yup.string()
+                .trim()
+                .required("Please enter organisation ID"),
+            mobile: Yup.string()
+                .trim()
+                .required("Please enter your mobile number")
+                .matches(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits"),
         }),
-        onSubmit: (values) => {
-            // sessionStorage.setItem("authUser", JSON.stringify(tempAuthData));
-            // navigate('/dashboard');
-            dispatch(loginUser(values, props.router.navigate));
-        }
+        onSubmit: async (values) => {
+            try {
+                setupRecaptcha();
+                const phoneNumber = `+91${values.mobile}`;
+                // Send OTP
+                const confirmation = await signInWithPhoneNumber(
+                    auth,
+                    phoneNumber,
+                    window.recaptchaVerifier
+                );
+
+                setIsSignInWithNumber(true);
+                setConfirmationResult(confirmation)
+            } catch (error) {
+                console.log("error: sign in with phone number: ", error);
+            }
+        },
     });
 
-    const signIn = type => {
-        dispatch(socialLogin(type, props.router.navigate));
+    const inputsRef = useRef([]);
+
+    // Ensure refs length = 6
+    const setInputRef = (el, idx) => {
+        inputsRef.current[idx] = el;
     };
 
-    //handleTwitterLoginResponse
-    // const twitterResponse = e => {}
+    const moveToNext = (idx, e) => {
+        const val = e?.target?.value || "";
+        // only keep digits
+        const digit = val.replace(/\D/g, "").slice(0, 1);
+        e.target.value = digit;
 
-    //for facebook and google authentication
-    const socialResponse = type => {
-        signIn(type);
+        if (digit && idx < 5) {
+            inputsRef.current[idx + 1]?.focus();
+            inputsRef.current[idx + 1].select?.();
+        }
     };
 
+    const handleKeyDown = (idx, e) => {
+        if (e.key === "Backspace") {
+            // If current input has value, clear it first
+            if (e.target.value) {
+                e.target.value = "";
+                setTimeout(() => {
+                    // keep focus in same input
+                }, 0);
+            } else if (idx > 0) {
+                // move to prev and clear it
+                inputsRef.current[idx - 1]?.focus();
+                inputsRef.current[idx - 1].value = "";
+            }
+            setError("");
+        } else if (e.key === "ArrowLeft" && idx > 0) {
+            inputsRef.current[idx - 1]?.focus();
+        } else if (e.key === "ArrowRight" && idx < 5) {
+            inputsRef.current[idx + 1]?.focus();
+        } else if (!/^[0-9]$/.test(e.key) && e.key.length === 1) {
+            // block non-digit printable characters
+            e.preventDefault();
+        }
+    };
+
+    const handlePaste = (e) => {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData("text");
+        const digits = paste.replace(/\D/g, "").slice(0, 6).split("");
+        if (digits.length === 0) return;
+
+        digits.forEach((d, i) => {
+            if (inputsRef.current[i]) inputsRef.current[i].value = d;
+        });
+
+        // focus next empty or last
+        const firstEmpty = inputsRef.current.findIndex((el) => !el.value);
+        const focusIdx = firstEmpty === -1 ? Math.min(digits.length, 5) : firstEmpty;
+        inputsRef.current[focusIdx]?.focus();
+    };
+
+    const getOtpValue = () => {
+        return inputsRef.current.map((el) => (el ? el.value : "")).join("");
+    };
+
+    const handleVerifyOTP = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        const otp = getOtpValue();
+        try {
+            if (!otp || otp.length !== 6) {
+                setError('Please enter a valid 6-digit OTP');
+                setLoading(false);
+                return;
+            }
+
+            const result = await confirmationResult.confirm(otp);
+            const user = result.user;
+
+
+
+            const payload = {
+                uid: user.uid,
+            }
+            const response = await authenticateAPI(payload, validation.values.orgID);
+            const storeAuthData = {
+                status: "success",
+                token: response.data.jwtToken,
+                data: response.data.userDetails,
+            }
+            sessionStorage.setItem("authUser", JSON.stringify(storeAuthData));
+            navigate('/dashboard');
+        } catch (error) {
+            console.error('Error verifying OTP:', error);
+            setError('Invalid OTP. Please try again.');
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (errorMsg) {
@@ -109,7 +207,8 @@ const Login = (props) => {
             }, 3000);
         }
     }, [dispatch, errorMsg]);
-    document.title = "Basic SignIn | Velzon - React Admin & Dashboard Template";
+
+    document.title = "SignIn | Learning App";
     return (
         <React.Fragment>
             <ParticlesAuth>
@@ -119,11 +218,11 @@ const Login = (props) => {
                             <Col lg={12}>
                                 <div className="text-center mt-sm-5 mb-4 text-white-50">
                                     <div>
-                                        <Link to="/" className="d-inline-block auth-logo">
+                                        {/* <Link to="/" className="d-inline-block auth-logo">
                                             <img src={logoLight} alt="" height="20" />
-                                        </Link>
+                                        </Link> */}
                                     </div>
-                                    <p className="mt-3 fs-15 fw-medium">Premium Admin & Dashboard Template</p>
+                                    {/* <p className="mt-3 fs-15 fw-medium">Premium Admin & Dashboard Template</p> */}
                                 </div>
                             </Col>
                         </Row>
@@ -131,115 +230,116 @@ const Login = (props) => {
                         <Row className="justify-content-center">
                             <Col md={8} lg={6} xl={5}>
                                 <Card className="mt-4">
-                                    <CardBody className="p-4">
-                                        <div className="text-center mt-2">
-                                            <h5 className="text-primary">Welcome Back !</h5>
-                                            <p className="text-muted">Sign in to continue to Velzon.</p>
-                                        </div>
-                                        {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
-                                        <div className="p-2 mt-4">
-                                            <Form
-                                                onSubmit={(e) => {
-                                                    e.preventDefault();
-                                                    validation.handleSubmit();
-                                                    return false;
-                                                }}
-                                                action="#">
-
-                                                <div className="mb-3">
-                                                    <Label htmlFor="email" className="form-label">Email</Label>
-                                                    <Input
-                                                        name="email"
-                                                        className="form-control"
-                                                        placeholder="Enter email"
-                                                        type="email"
-                                                        onChange={validation.handleChange}
-                                                        onBlur={validation.handleBlur}
-                                                        value={validation.values.email || ""}
-                                                        invalid={
-                                                            validation.touched.email && validation.errors.email ? true : false
-                                                        }
-                                                    />
-                                                    {validation.touched.email && validation.errors.email ? (
-                                                        <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
-                                                    ) : null}
-                                                </div>
-
-                                                <div className="mb-3">
-                                                    <div className="float-end">
-                                                        <Link to="/forgot-password" className="text-muted">Forgot password?</Link>
-                                                    </div>
-                                                    <Label className="form-label" htmlFor="password-input">Password</Label>
-                                                    <div className="position-relative auth-pass-inputgroup mb-3">
+                                    <CardBody className="p-2">
+                                        {!isSignInWithNumber && (<>
+                                            <div className="text-center mt-2">
+                                                <h5 className="text-primary">Welcome Back !</h5>
+                                                <p className="text-muted">Sign in to continue to the Learning App.</p>
+                                            </div>
+                                            {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
+                                            <div className="p-2 mt-4">
+                                                <Form
+                                                    onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        validation.handleSubmit();
+                                                        return false;
+                                                    }}
+                                                    action="#">
+                                                    <div className="mb-3">
+                                                        <Label htmlFor="orgID" className="form-label">Orgnisation ID</Label>
                                                         <Input
-                                                            name="password"
-                                                            value={validation.values.password || ""}
-                                                            type={passwordShow ? "text" : "password"}
-                                                            className="form-control pe-5"
-                                                            placeholder="Enter Password"
+                                                            name="orgID"
+                                                            className="form-control"
+                                                            placeholder="Enter Orgnisation ID"
+                                                            type="text"
                                                             onChange={validation.handleChange}
                                                             onBlur={validation.handleBlur}
+                                                            value={validation.values.orgID || ""}
                                                             invalid={
-                                                                validation.touched.password && validation.errors.password ? true : false
+                                                                validation.touched.orgID && validation.errors.orgID ? true : false
                                                             }
                                                         />
-                                                        {validation.touched.password && validation.errors.password ? (
-                                                            <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
+                                                        {validation.touched.orgID && validation.errors.orgID ? (
+                                                            <FormFeedback type="invalid">{validation.errors.orgID}</FormFeedback>
                                                         ) : null}
-                                                        <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted" type="button" id="password-addon" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
                                                     </div>
-                                                </div>
 
-                                                <div className="form-check">
+                                                    <div className="mb-3">
+                                                        <Label className="form-label" htmlFor="password-input">Mobile</Label>
+                                                        <div className="position-relative auth-pass-inputgroup mb-3">
+                                                            <Input
+                                                                name="mobile"
+                                                                value={validation.values.mobile || ""}
+                                                                type="tel"
+                                                                className="form-control pe-5"
+                                                                placeholder="Enter Mobile Number"
+                                                                onChange={validation.handleChange}
+                                                                onBlur={validation.handleBlur}
+                                                                invalid={
+                                                                    validation.touched.mobile && validation.errors.mobile ? true : false
+                                                                }
+                                                            />
+                                                            {validation.touched.mobile && validation.errors.mobile ? (
+                                                                <FormFeedback type="invalid">{validation.errors.mobile}</FormFeedback>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* <div className="form-check">
                                                     <Input className="form-check-input" type="checkbox" value="" id="auth-remember-check" />
                                                     <Label className="form-check-label" htmlFor="auth-remember-check">Remember me</Label>
-                                                </div>
+                                                </div> */}
 
-                                                <div className="mt-4">
-                                                    <Button color="success" disabled={error ? null : loading ? true : false} className="btn btn-success w-100" type="submit">
-                                                        {loading ? <Spinner size="sm" className='me-2'> Loading... </Spinner> : null}
-                                                        Sign In
-                                                    </Button>
-                                                </div>
+                                                    <div className="mt-4">
+                                                        <Button color="success" disabled={error ? null : loading ? true : false} className="btn btn-success w-100" type="submit">
+                                                            {loading ? <Spinner size="sm" className='me-2'> Loading... </Spinner> : null}
+                                                            Sign In
+                                                        </Button>
+                                                    </div>
+                                                </Form>
+                                            </div>
+                                        </>)}
 
-                                                <div className="mt-4 text-center">
-                                                    <div className="signin-other-title">
-                                                        <h5 className="fs-13 mb-4 title">Sign In with</h5>
-                                                    </div>
-                                                    <div>
-                                                        <Link
-                                                            to="#"
-                                                            className="btn btn-primary btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("facebook");
-                                                            }}
-                                                        >
-                                                            <i className="ri-facebook-fill fs-16" />
-                                                        </Link>
-                                                        <Link
-                                                            to="#"
-                                                            className="btn btn-danger btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("google");
-                                                            }}
-                                                        >
-                                                            <i className="ri-google-fill fs-16" />
-                                                        </Link>
-                                                        <Button color="dark" className="btn-icon"><i className="ri-github-fill fs-16"></i></Button>{" "}
-                                                        <Button color="info" className="btn-icon"><i className="ri-twitter-fill fs-16"></i></Button>
-                                                    </div>
+                                        {isSignInWithNumber && (<div className="p-2 mt-4">
+                                            <div className="text-muted text-center mb-4 mx-lg-3">
+                                                <h4 className="">Verify Your OTP</h4>
+                                                <p>Please enter the 6 digit code sent to <span className="fw-semibold">{validation.values.mobile}</span></p>
+                                            </div>
+
+                                            <form onSubmit={handleVerifyOTP}>
+                                                <Row>
+                                                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                                                        <Col key={i} className="col-2">
+                                                            <div className="mb-3">
+                                                                <label htmlFor={`digit${i + 1}-input`} className="visually-hidden">{`Digit ${i + 1}`}</label>
+                                                                <input
+                                                                    id={`digit${i + 1}-input`}
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
+                                                                    maxLength="1"
+                                                                    className="form-control form-control-lg bg-light border-light text-center"
+                                                                    ref={(el) => setInputRef(el, i)}
+                                                                    onKeyUp={(e) => moveToNext(i, e)}
+                                                                    onKeyDown={(e) => handleKeyDown(i, e)}
+                                                                    onPaste={handlePaste}
+                                                                    autoComplete="one-time-code"
+                                                                    aria-label={`Digit ${i + 1}`}
+                                                                />
+                                                            </div>
+                                                        </Col>
+                                                    ))}
+                                                </Row>
+
+                                                <div className="mt-3">
+                                                    <Button color="success" className="w-100">Confirm</Button>
                                                 </div>
-                                            </Form>
-                                        </div>
+                                            </form>
+
+                                        </div>)}
                                     </CardBody>
                                 </Card>
-
-                                <div className="mt-4 text-center">
-                                    <p className="mb-0">Don't have an account ? <Link to="/register" className="fw-semibold text-primary text-decoration-underline"> Signup </Link> </p>
-                                </div>
-
+                                <div id="recaptcha-container"></div>
                             </Col>
                         </Row>
                     </Container>

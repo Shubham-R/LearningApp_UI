@@ -1,14 +1,17 @@
 import axios from 'axios';
 
-export const postMethodCall = async (url, data, contentType = 'application/json') => {
+export const postMethodCall = async (url, data, orgId = '') => {
   try {
+    let headers = {
+      'Content-Type': 'application/json',
+      "X-Tenant-ID": orgId
+    }
+
     const apiResponse = await axios({
       method: 'post',
       url,
       data,
-      headers: {
-        'Content-Type': contentType
-      }
+      headers
     });
     return { status: true, data: apiResponse };
   } catch (err) {
