@@ -10,3 +10,8 @@ export const createDraftCourseAPI = async (payload, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-categories/create-course-categories`, payload, contentType);
 };
 
+// Get particular course details
+export const getCourseDetailsAPI = async (payload, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-categories/draft-course`, payload, contentType);
+};
+

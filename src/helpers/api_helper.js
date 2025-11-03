@@ -11,6 +11,15 @@ const token = JSON.parse(sessionStorage.getItem("authUser")) ? JSON.parse(sessio
 if (token)
   axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 
+// Request interceptor – set Tenant ID
+axios.interceptors.request.use(
+  (config) => {
+    config.headers["X-Tenant-ID"] = "t1";
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // intercepting to capture errors
 axios.interceptors.response.use(
   function (response) {
