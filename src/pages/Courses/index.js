@@ -132,7 +132,6 @@ const Courses = () => {
                                             </Link>
                                         </div>
                                     </div>
-
                                     <UncontrolledCollapse toggler="#filter-collapse" defaultOpen>
                                         <Row className="mt-3 g-3 align-items-end">
                                             <Col md={6}>
