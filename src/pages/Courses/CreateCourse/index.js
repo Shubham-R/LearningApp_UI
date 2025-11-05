@@ -45,6 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { createDraftCourseAPI, getAllCategoriesAPI } from "../../../api/course";
 
 
 
@@ -56,8 +57,6 @@ const CreateCourse = () => {
     const [passedSteps, setPassedSteps] = useState([1]);
     const [passedarrowSteps, setPassedarrowSteps] = useState([1]);
     const [passedverticalSteps, setPassedverticalSteps] = useState([1]);
-    const [category, setCategory] = useState(null);
-    const [subCategory, setSubCategory] = useState(null);
     const [courseValidityType, setCourseValidityType] = useState(null);
     const [singleValidityType, setSingleValidityType] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -81,6 +80,13 @@ const CreateCourse = () => {
             }
         ]
     }]);
+    const [loading, setLoading] = useState(true);
+    const [category, setCategory] = useState(null);
+    const [subCategory, setSubCategory] = useState(null);
+    const [courseSubCategory, setCourseSubCategory] = useState([]);
+    const [editorData, setEditorData] = useState("");
+    const [subOptionsByRow, setSubOptionsByRow] = useState([[]]);
+    const [courseId, setCourseId] = useState("");
 
 
     const dispatch = useDispatch();
@@ -384,14 +390,14 @@ const CreateCourse = () => {
         },
     ];
 
-    const courseSubCategory = [
-        {
-            options: [
-                { label: "SubCategory1", value: "SubCategory1" },
-                { label: "SubCategory2", value: "SubCategory2" },
-            ],
-        },
-    ];
+    // const courseSubCategory = [
+    //     {
+    //         options: [
+    //             { label: "SubCategory1", value: "SubCategory1" },
+    //             { label: "SubCategory2", value: "SubCategory2" },
+    //         ],
+    //     },
+    // ];
 
 
     const courseDurationTypes = [
@@ -519,28 +525,28 @@ const CreateCourse = () => {
         setMultiValidityPlansData(copyMultiValidityPlansData)
     }
 
-    const onAddAnotherCategoryHandler = () => {
-        let copyCategoryMappings = cloneDeep(categoryMappings);
-        copyCategoryMappings.push(
-            {
-                categoryId: null,
-                categoryName: null,
-                subcategories: [
-                    {
-                        subCategoryId: null,
-                        subCategoryName: null,
-                    }
-                ]
-            }
-        )
-        setCategoryMappings(copyCategoryMappings)
-    }
+    // const onAddAnotherCategoryHandler = () => {
+    //     let copyCategoryMappings = cloneDeep(categoryMappings);
+    //     copyCategoryMappings.push(
+    //         {
+    //             categoryId: null,
+    //             categoryName: null,
+    //             subcategories: [
+    //                 {
+    //                     subCategoryId: null,
+    //                     subCategoryName: null,
+    //                 }
+    //             ]
+    //         }
+    //     )
+    //     setCategoryMappings(copyCategoryMappings)
+    // }
 
-    const onRemovedCategoryHandler = (index) => {
-        let copyCategoryMappings = cloneDeep(categoryMappings);
-        copyCategoryMappings.splice(index, 1);
-        setCategoryMappings(copyCategoryMappings)
-    }
+    // const onRemovedCategoryHandler = (index) => {
+    //     let copyCategoryMappings = cloneDeep(categoryMappings);
+    //     copyCategoryMappings.splice(index, 1);
+    //     setCategoryMappings(copyCategoryMappings)
+    // }
 
     //Dropzone file upload
     const [selectedFiles, setselectedFiles] = useState([]);
@@ -567,6 +573,142 @@ const CreateCourse = () => {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     }
+
+    // Fetch all categories
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoading(true);
+                const response = await getAllCategoriesAPI();
+                if (response?.status === true && Array.isArray(response?.data)) {
+                    setCategoryMappings(response.data);
+                } else {
+                    setCategoryMappings([]);
+                }
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+                setCategoryMappings([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCategories();
+    }, []);
+
+    // Validation Schema
+    const validationSchema = Yup.object().shape({
+        courseName: Yup.string().required("Course name is required"),
+        courseDescription: Yup.string().required("Description is required"),
+    });
+
+    // Formik Setup
+    const formik = useFormik({
+        initialValues: {
+            courseName: "",
+            courseDescription: "",
+            courseImage: null,
+            selectedCategories: [{ category: null, subCategory: [] }],
+        },
+        validationSchema,
+        onSubmit: async (values) => {
+            try {
+                const categoryMappingsPayload = values.selectedCategories
+                    .filter((r) => r.category)
+                    .map((r) => {
+                        const isMultiple =
+                            Array.isArray(r.subCategory) && r.subCategory.length > 1;
+
+                        return {
+                            categoryId: r.category.value,
+                            categoryName: r.category.label,
+                            subcategories: isMultiple
+                                ? r.subCategory.map((sub) => ({
+                                    subCategoryName: sub.label,
+                                }))
+                                : r.subCategory.length === 1
+                                    ? [
+                                        {
+                                            subCategoryId: r.subCategory[0].value,
+                                        },
+                                    ]
+                                    : [],
+                        };
+                    });
+
+                const payload = {
+                    courseName: values.courseName,
+                    courseDescription: values.courseDescription,
+                    courseImageUrl: values.courseImage
+                        ? values.courseImage.name
+                        : "http://default-image-url.com",
+                    categoryMappings: categoryMappingsPayload,
+                };
+
+                console.log("Final Payload:", payload);
+                const response = await createDraftCourseAPI(payload);
+                console.log("response----", response);
+                if (response?.status === true && response?.data) {
+                    setCourseId(response?.data?.courseId)
+                } 
+                toggleTab(activeTab + 1, 33);
+            } catch (error) {
+                console.error("Error creating draft course:", error);
+            }
+        },
+    });
+
+
+    // Category change handler
+    const handleRowCategoryChange = (index, selectedCategory) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated[index].category = selectedCategory;
+        updated[index].subCategory = [];
+        formik.setFieldValue("selectedCategories", updated);
+
+        const selectedCat = categoryMappings.find(
+            (c) => c.categoryId === selectedCategory?.value
+        );
+
+        const subOptions = selectedCat?.subcategories
+            ? selectedCat.subcategories.map((s) => ({
+                value: s.subCategoryId,
+                label: s.subCategoryName,
+            }))
+            : [];
+
+        const newSubOptions = cloneDeep(subOptionsByRow);
+        newSubOptions[index] = subOptions;
+        setSubOptionsByRow(newSubOptions);
+    };
+
+    // Subcategory change handler
+    const handleRowSubCategoryChange = (index, selectedSubs) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated[index].subCategory = selectedSubs;
+        formik.setFieldValue("selectedCategories", updated);
+    };
+
+
+    // Add another category
+    const onAddAnotherCategoryHandler = (e) => {
+        e?.preventDefault();
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated.push({ category: null, subCategory: [] });
+        formik.setFieldValue("selectedCategories", updated);
+        setSubOptionsByRow((prev) => [...prev, []]);
+    };
+
+    // Remove category
+    const onRemovedCategoryHandler = (index) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        if (updated.length === 1) return;
+        updated.splice(index, 1);
+        formik.setFieldValue("selectedCategories", updated);
+
+        const newSubOptions = cloneDeep(subOptionsByRow);
+        newSubOptions.splice(index, 1);
+        setSubOptionsByRow(newSubOptions);
+    };
 
     document.title = "Create Course | Classplus";
 
@@ -703,6 +845,7 @@ const CreateCourse = () => {
                                                     <Row>
                                                         <Col lg={6}>
                                                             <Row>
+                                                                {/* Course Name */}
                                                                 <Col lg={12}>
                                                                     <div className="mb-3">
                                                                         <Label
@@ -716,118 +859,144 @@ const CreateCourse = () => {
                                                                             className="form-control"
                                                                             id="gen-info-course-input"
                                                                             placeholder="Enter Course Name"
+                                                                            name="courseName"
+                                                                            value={formik.values.courseName}
+                                                                            onChange={formik.handleChange}
                                                                         />
+                                                                        {formik.touched.courseName && formik.errors.courseName && (
+                                                                            <div className="text-danger">{formik.errors.courseName}</div>
+                                                                        )}
                                                                     </div>
                                                                 </Col>
+
+                                                                {/* Description */}
                                                                 <Col lg={12}>
                                                                     <div className="mb-3">
                                                                         <Label className="form-label">Description</Label>
                                                                         <CKEditor
                                                                             editor={ClassicEditor}
-                                                                            data="<p>Hello from CKEditor 5!</p>"
-                                                                            onReady={(editor) => {
-                                                                                // You can store the "editor" and use when it is needed.
-
+                                                                            data={editorData}
+                                                                            onChange={(event, editor) => {
+                                                                                const data = editor.getData();
+                                                                                setEditorData(data);
+                                                                                formik.setFieldValue("courseDescription", data);
                                                                             }}
-                                                                        // onChange={(editor) => {
-                                                                        //     editor.getData();
-                                                                        // }}
+                                                                        />
+                                                                        {formik.touched.courseDescription && formik.errors.courseDescription && (
+                                                                            <div className="text-danger">{formik.errors.courseDescription}</div>
+                                                                        )}
+                                                                    </div>
+                                                                </Col>
+
+                                                                {/* Thumbnail */}
+                                                                <Col lg={12}>
+                                                                    <div>
+                                                                        <Label className="form-label" htmlFor="project-thumbnail-img">
+                                                                            Thumbnail Image
+                                                                        </Label>
+                                                                        <Input
+                                                                            className="form-control"
+                                                                            id="project-thumbnail-img"
+                                                                            type="file"
+                                                                            accept="image/png, image/gif, image/jpeg"
+                                                                            onChange={(e) =>
+                                                                                formik.setFieldValue("courseImage", e.currentTarget.files[0])
+                                                                            }
                                                                         />
                                                                     </div>
                                                                 </Col>
-                                                                <Col lg={12}>
-                                                                    <div className="">
-                                                                        <Label className="form-label" htmlFor="project-thumbnail-img">Thumbnail Image</Label>
-                                                                        <Input className="form-control" id="project-thumbnail-img" type="file" accept="image/png, image/gif, image/jpeg" />
-                                                                    </div>
-                                                                </Col>
                                                             </Row>
-                                                            {
-                                                                categoryMappings.map((mapping, index) => (
-                                                                    <div className="mb-3 mt-3 mb-lg-0" key={index}>
-                                                                        <Row >
-                                                                            <Col lg={5}>
-                                                                                <div className="mb-3 mb-lg-0">
-                                                                                    <Label htmlFor="choices-Category-input" className="form-label">Category</Label>
-                                                                                    <Select
-                                                                                        value={category}
-                                                                                        onChange={(category) => {
-                                                                                            setCategory(category);
-                                                                                        }}
-                                                                                        options={courseCategory}
-                                                                                        id="choices-single-default"
-                                                                                        className="js-example-basic-single mb-0"
-                                                                                        name="category"
-                                                                                    />
-                                                                                </div>
-                                                                            </Col>
-                                                                            <Col lg={5}>
-                                                                                <div className="mb-3 mb-lg-0">
-                                                                                    <Label htmlFor="choices-SubCategory-input" className="form-label">Sub Category</Label>
 
-                                                                                    <Select
-                                                                                        value={subCategory}
-                                                                                        onChange={(subCategory) => {
-                                                                                            setSubCategory(subCategory);
-                                                                                        }}
-                                                                                        options={courseSubCategory}
-                                                                                        id="choices-single-default"
-                                                                                        className="js-example-basic-single mb-0"
-                                                                                        name="subCategory"
-                                                                                    />
-                                                                                </div>
-                                                                            </Col>
-                                                                            {categoryMappings.length !== 1 && (<Col lg={2}>
+                                                            {/* Category Rows */}
+                                                            <div className="mb-3 mt-3 mb-lg-0">
+                                                                {formik.values.selectedCategories.map((row, index) => (
+                                                                    <Row key={index} className="mb-2 align-items-center">
+                                                                        {/* Category */}
+                                                                        <Col lg={5}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <Label className="form-label">Category</Label>
+                                                                                <Select
+                                                                                    value={row.category}
+                                                                                    onChange={(selected) =>
+                                                                                        handleRowCategoryChange(index, selected)
+                                                                                    }
+                                                                                    options={categoryMappings.map((cat) => ({
+                                                                                        value: cat.categoryId,
+                                                                                        label: cat.categoryName,
+                                                                                    }))}
+                                                                                    className="js-example-basic-single mb-0"
+                                                                                    name={`category-${index}`}
+                                                                                    placeholder="Select Category"
+                                                                                />
+                                                                            </div>
+                                                                        </Col>
+
+                                                                        {/* Subcategory (Multi) */}
+                                                                        <Col lg={5}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <Label className="form-label">Sub Category</Label>
+                                                                                <Select
+                                                                                    value={row.subCategory}
+                                                                                    onChange={(selectedSub) =>
+                                                                                        handleRowSubCategoryChange(index, selectedSub)
+                                                                                    }
+                                                                                    options={subOptionsByRow[index] || []}
+                                                                                    className="js-example-basic-single mb-0"
+                                                                                    name={`subCategory-${index}`}
+                                                                                    placeholder="Select Sub Category"
+                                                                                    isDisabled={!row.category}
+                                                                                    isMulti={true}
+                                                                                />
+                                                                            </div>
+                                                                        </Col>
+
+                                                                        {/* Remove category row */}
+                                                                        {formik.values.selectedCategories.length !== 1 && (
+                                                                            <Col lg={2}>
                                                                                 <Label />
                                                                                 <div className="mb-3 mb-lg-0">
-                                                                                    <Link to="#" onClick={() => {
-                                                                                        onRemovedCategoryHandler(index);
-                                                                                    }}>
-                                                                                        <i class="ri-delete-bin-line mt-3" ></i>
+                                                                                    <Link
+                                                                                        to="#"
+                                                                                        onClick={(e) => {
+                                                                                            e.preventDefault();
+                                                                                            onRemovedCategoryHandler(index);
+                                                                                        }}
+                                                                                    >
+                                                                                        <i className="ri-delete-bin-line mt-3"></i>
                                                                                     </Link>
                                                                                 </div>
-                                                                            </Col>)}
-                                                                        </Row>
-                                                                    </div>
-                                                                ))
-                                                            }
+                                                                            </Col>
+                                                                        )}
+                                                                    </Row>
+                                                                ))}
+                                                            </div>
 
+                                                            {/* Add Another Category */}
                                                             <Row>
                                                                 <Col lg={6}>
                                                                     <div className="mb-3 mt-3 mb-lg-0">
-                                                                        <p><Link to="#" className="link-info" onClick={onAddAnotherCategoryHandler}><i class="ri-add-circle-fill"></i> Add Another Category</Link></p>
+                                                                        <p>
+                                                                            <Link
+                                                                                to="#"
+                                                                                className="link-info"
+                                                                                onClick={onAddAnotherCategoryHandler}
+                                                                            >
+                                                                                <i className="ri-add-circle-fill"></i> Add Another Category
+                                                                            </Link>
+                                                                        </p>
                                                                     </div>
                                                                 </Col>
                                                             </Row>
                                                         </Col>
                                                     </Row>
-                                                    <Row>
-
-                                                    </Row>
-
-
-                                                    {/* <div className="mb-3">
-                                                        <Label
-                                                            className="form-label"
-                                                            htmlFor="gen-info-password-input"
-                                                        >
-                                                            Password
-                                                        </Label>
-                                                        <Input
-                                                            type="password"
-                                                            className="form-control"
-                                                            id="gen-info-password-input"
-                                                            placeholder="Enter Password"
-                                                        />
-                                                    </div> */}
                                                 </div>
+
+                                                {/* Edit Price Button */}
                                                 <div className="d-flex align-items-start gap-3 mt-4">
                                                     <button
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
-                                                        onClick={() => {
-                                                            toggleTab(activeTab + 1, 33);
-                                                        }}
+                                                        onClick={formik.handleSubmit}
                                                     >
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                         Edit Price
@@ -1342,6 +1511,7 @@ const CreateCourse = () => {
                                                     </button>
                                                 </div>
                                             </TabPane>
+
                                             <TabPane tabId={4}>
                                                 <div>
                                                     <div className="text-center">
