@@ -1,6 +1,6 @@
 import config from '../config';
 import { objectToQueryString } from '../helpers/common';
-import { getMethodCall, patchMethodCall, postMethodCall } from './apiHandler';
+import { getMethodCall, patchMethodCall, postMethodCall, putMethodCall } from './apiHandler';
 
 // Get all courses
 export const getCourseListAPI = async (params) => {
@@ -25,4 +25,14 @@ export const getAllCategoriesAPI = async (params) => {
 // Update draft course
 export const updateDraftCourseAPI = async (payload, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-categories/update-course-categories`, payload, contentType);
+};
+
+// Create Pricing
+export const createPricingAPI = async (payload, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-pricing-duration/create-pricing`, payload, contentType);
+};
+
+// Update price
+export const updatePriceAPI = async (payload, contentType) => {
+  return await putMethodCall(`${config.api.API_URL}/course-pricing-duration/update-pricing`, payload, contentType);
 };
