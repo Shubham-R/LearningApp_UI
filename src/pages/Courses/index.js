@@ -178,12 +178,13 @@ const Courses = () => {
                                         </div>
                                         <CardBody>
                                             <h5 className="mb-1">
-                                                <Link to={`/course-details/${course.courseId}`}>
+                                                <Link to={`/course-details/${course.courseId}`}
+                                                state={{ courseName: course.courseName, courseStatus: course.courseStatus }}>
                                                     {course.courseName}
                                                 </Link>
                                             </h5>
                                             <p className="text-muted mb-0">
-                                                Status: {course.status}
+                                                Status: {course.courseStatus}
                                             </p>
                                             <p className="text-muted mb-0">
                                                 Created At: {new Date(course.createdAt).toLocaleDateString()}

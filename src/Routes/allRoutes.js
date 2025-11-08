@@ -10,11 +10,13 @@ import Logout from "../pages/Authentication/Logout";
 import Register from "../pages/Authentication/Register";
 import Courses from "../pages/Courses";
 import CreateCourse from "../pages/Courses/CreateCourse";
+import CourseDetail from "../pages/Courses/CourseDetail";
 
 const authProtectedRoutes = [
   { path: "/dashboard", component: <DashboardEcommerce /> },
   { path: "/courses", component: <Courses /> },
-    { path: "/create-course", component: <CreateCourse /> },
+  { path: "/create-course", component: <CreateCourse /> },
+  { path: "/course-details/:courseId", component: <CourseDetail /> },
 
  
   // this route should be at the end of all other routes
