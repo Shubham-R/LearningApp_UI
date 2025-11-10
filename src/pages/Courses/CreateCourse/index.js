@@ -45,6 +45,8 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
+import moment from "moment";
 
 
 
@@ -56,8 +58,6 @@ const CreateCourse = () => {
     const [passedSteps, setPassedSteps] = useState([1]);
     const [passedarrowSteps, setPassedarrowSteps] = useState([1]);
     const [passedverticalSteps, setPassedverticalSteps] = useState([1]);
-    const [category, setCategory] = useState(null);
-    const [subCategory, setSubCategory] = useState(null);
     const [courseValidityType, setCourseValidityType] = useState(null);
     const [singleValidityType, setSingleValidityType] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -81,6 +81,18 @@ const CreateCourse = () => {
             }
         ]
     }]);
+    const [loading, setLoading] = useState(true);
+    const [category, setCategory] = useState(null);
+    const [subCategory, setSubCategory] = useState(null);
+    const [courseSubCategory, setCourseSubCategory] = useState([]);
+    const [editorData, setEditorData] = useState("");
+    const [subOptionsByRow, setSubOptionsByRow] = useState([[]]);
+    const [courseData, setCourseData] = useState("");
+    const [singleValidityDuration, setSingleValidityDuration] = useState("");
+    const [price, setPrice] = useState("");
+    const [discount, setDiscount] = useState("");
+    const [effectivePrice, setEffectivePrice] = useState("");
+    const [priceData, setPriceData] = useState("");
 
 
     const dispatch = useDispatch();
@@ -384,16 +396,16 @@ const CreateCourse = () => {
         },
     ];
 
-    const courseSubCategory = [
-        {
-            options: [
-                { label: "SubCategory1", value: "SubCategory1" },
-                { label: "SubCategory2", value: "SubCategory2" },
-            ],
-        },
-    ];
+    // const courseSubCategory = [
+    //     {
+    //         options: [
+    //             { label: "SubCategory1", value: "SubCategory1" },
+    //             { label: "SubCategory2", value: "SubCategory2" },
+    //         ],
+    //     },
+    // ];
 
-
+    // Course duration type - PAID COURSE
     const paidCourseDurationTypes = [
         {
             options: [
@@ -405,6 +417,7 @@ const CreateCourse = () => {
         },
     ];
 
+    // Course duration type - FREE COURSE
     const freeCourseDurationTypes = [
         {
             options: [
@@ -476,6 +489,7 @@ const CreateCourse = () => {
         setselectedMulti(selectedMulti);
     }
 
+    // Multi-Validity Handlers
     const onEditMultiValidityHandler = (planId) => {
         let copyMultiValidityPlansData = cloneDeep(MultiValidityPlansData);
         copyMultiValidityPlansData = copyMultiValidityPlansData.map((plan) => {
@@ -528,28 +542,28 @@ const CreateCourse = () => {
         setMultiValidityPlansData(copyMultiValidityPlansData)
     }
 
-    const onAddAnotherCategoryHandler = () => {
-        let copyCategoryMappings = cloneDeep(categoryMappings);
-        copyCategoryMappings.push(
-            {
-                categoryId: null,
-                categoryName: null,
-                subcategories: [
-                    {
-                        subCategoryId: null,
-                        subCategoryName: null,
-                    }
-                ]
-            }
-        )
-        setCategoryMappings(copyCategoryMappings)
-    }
+    // const onAddAnotherCategoryHandler = () => {
+    //     let copyCategoryMappings = cloneDeep(categoryMappings);
+    //     copyCategoryMappings.push(
+    //         {
+    //             categoryId: null,
+    //             categoryName: null,
+    //             subcategories: [
+    //                 {
+    //                     subCategoryId: null,
+    //                     subCategoryName: null,
+    //                 }
+    //             ]
+    //         }
+    //     )
+    //     setCategoryMappings(copyCategoryMappings)
+    // }
 
-    const onRemovedCategoryHandler = (index) => {
-        let copyCategoryMappings = cloneDeep(categoryMappings);
-        copyCategoryMappings.splice(index, 1);
-        setCategoryMappings(copyCategoryMappings)
-    }
+    // const onRemovedCategoryHandler = (index) => {
+    //     let copyCategoryMappings = cloneDeep(categoryMappings);
+    //     copyCategoryMappings.splice(index, 1);
+    //     setCategoryMappings(copyCategoryMappings)
+    // }
 
     //Dropzone file upload
     const [selectedFiles, setselectedFiles] = useState([]);
@@ -577,24 +591,269 @@ const CreateCourse = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     }
 
+    // Formik setup of edit price
     const coursePricingValidation = useFormik({
         enableReinitialize: true,
         initialValues: {
             planType: "PAID",
+            price: "",
+            discountPercent: "",
+            effectivePrice: "",
+            expiryDate: "",
+            single: null,
+            multiple: null,
+            lifetimePrice: null
         },
-        // validationSchema: Yup.object().shape({
-        //     orgID: Yup.string()
-        //         .trim()
-        //         .required("Please enter organisation ID"),
-        //     mobile: Yup.string()
-        //         .trim()
-        //         .required("Please enter your mobile number")
-        //         .matches(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits"),
-        // }),
         onSubmit: async (values) => {
-            console.log(values);
+            try {
+                let payload = null;
+
+                if (courseValidityType?.value === "MultipleValidity" && MultiValidityPlansData.length === 0) {
+                    alert("Please add at least one validity option before proceeding.");
+                    return;
+                }
+
+                // SINGLE VALIDITY PAYLOAD
+                if (courseValidityType?.value === "SingleValidity") {
+                    payload = {
+                        courseId: courseData?.courseId,
+                        planType: values.planType,
+                        validityType: "SINGLE",
+                        single: {
+                            durationValue: Number(singleValidityDuration),
+                            durationUnit: singleValidityType?.value?.toUpperCase() || "",
+                            price: Number(price),
+                            discountPercent: Number(discount),
+                            effectivePrice: Number(effectivePrice),
+                        },
+                        draftFlag: true,
+                    };
+                }
+
+                // MULTIPLE VALIDITY PAYLOAD
+                else if (courseValidityType?.value === "MultipleValidity") {
+                    payload = {
+                        courseId: courseData?.courseId,
+                        planType: values.planType,
+                        validityType: "MULTIPLE",
+                        multiple: MultiValidityPlansData.map((plan) => ({
+                            durationValue: Number(plan.validityDuration),
+                            durationUnit: plan.validityDurationType?.toUpperCase(),
+                            price: Number(plan.price),
+                            discountPercent: Number(plan.discount),
+                            effectivePrice: Number(plan.effectivePrice),
+                        })),
+                        draftFlag: true,
+                    };
+                }
+
+                // LIFETIME VALIDITY
+                else if (courseValidityType?.value === "LifetimeValidity") {
+                    payload = {
+                        courseId: courseData?.courseId,
+                        planType: values.planType,
+                        validityType: "LIFETIME",
+                        lifetimePrice: {
+                            price: Number(values.price),
+                            discountPercent: Number(values.discountPercent),
+                            effectivePrice: Number(values.effectivePrice),
+                        },
+                        draftFlag: true,
+                    };
+                }
+
+                // COURSE EXPIRY DATE VALIDITY
+                else if (courseValidityType?.value === "CourseExpiryDate") {
+                    payload = {
+                        courseId: courseData?.courseId,
+                        planType: values.planType,
+                        validityType: "EXPIRY_DATE",
+                        expiryDate: moment(values.expiryDate).format("YYYY-MM-DD"), // make sure Flatpickr value is in date format
+                        lifetimePrice: {
+                            price: Number(values.price),
+                            discountPercent: Number(values.discountPercent),
+                            effectivePrice: Number(values.effectivePrice),
+                        },
+                        draftFlag: true,
+                    };
+                }
+
+                if (!payload) {
+                    console.warn("No validity type selected.");
+                    return;
+                }
+
+                console.log("createPricingAPI Payload:", payload);
+
+                if(priceData?.pricePlanId && priceData?.courseId) {
+                    payload.courseId = priceData?.courseId;
+                    payload.pricePlanId = priceData?.pricePlanId;
+                    const updatePriceResponse = await updatePriceAPI(payload);
+                    console.log("updatePriceResponse Response:", updatePriceResponse);
+
+                    if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
+                        setPriceData(updatePriceResponse?.data);
+                        toggleTab(activeTab + 1, 67);
+                    }
+                } else {
+                    const response = await createPricingAPI(payload);
+                    console.log("createPricingAPI Response:", response);
+                    if (response?.status === true && response?.data) {
+                        setPriceData(response?.data);
+                        toggleTab(activeTab + 1, 67);
+                    }
+                }
+            } catch (error) {
+                console.error("Error creating pricing:", error);
+            }
         },
     });
+
+
+    // Fetch all categories
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoading(true);
+                const response = await getAllCategoriesAPI();
+                if (response?.status === true && Array.isArray(response?.data)) {
+                    setCategoryMappings(response.data);
+                } else {
+                    setCategoryMappings([]);
+                }
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+                setCategoryMappings([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCategories();
+    }, []);
+
+    // Validation Schema
+    const validationSchema = Yup.object().shape({
+        courseName: Yup.string().required("Course name is required"),
+        courseDescription: Yup.string().required("Description is required"),
+    });
+
+    // Formik Setup for basic info
+    const formik = useFormik({
+        initialValues: {
+            courseName: "",
+            courseDescription: "",
+            courseImage: null,
+            selectedCategories: [{ category: null, subCategory: [] }],
+        },
+        validationSchema,
+        onSubmit: async (values) => {
+            try {
+                const categoryMappingsPayload = values.selectedCategories
+                    .filter((r) => r.category)
+                    .map((r) => {
+                        const isMultiple =
+                            Array.isArray(r.subCategory) && r.subCategory.length > 1;
+
+                        return {
+                            categoryId: r.category.value,
+                            categoryName: r.category.label,
+                            subcategories: isMultiple
+                                ? r.subCategory.map((sub) => ({
+                                    subCategoryName: sub.label,
+                                }))
+                                : r.subCategory.length === 1
+                                    ? [
+                                        {
+                                            subCategoryId: r.subCategory[0].value,
+                                        },
+                                    ]
+                                    : [],
+                        };
+                    });
+
+                const payload = {
+                    courseName: values.courseName,
+                    courseDescription: values.courseDescription,
+                    courseImageUrl: values.courseImage
+                        ? values.courseImage.name
+                        : "http://default-image-url.com",
+                    categoryMappings: categoryMappingsPayload,
+                };
+
+                // If courseId exists, update the draft course
+                if(courseData?.courseId) {
+                    payload.courseId = courseData?.courseId;
+                    payload.courseStatus = courseData?.courseStatus;
+                    const updateResponse = await updateDraftCourseAPI(payload);
+                    if (updateResponse?.status === true && updateResponse?.data) {
+                        setCourseData(updateResponse?.data)
+                        toggleTab(activeTab + 1, 33);
+                    }
+                } else { // Else, create a new draft course
+                    const response = await createDraftCourseAPI(payload);
+                    if (response?.status === true && response?.data) {
+                        setCourseData(response?.data)
+                        toggleTab(activeTab + 1, 33);
+                    }
+                }
+            } catch (error) {
+                console.error("Error creating draft course:", error);
+            }
+        },
+    });
+
+
+    // Category change handler
+    const handleRowCategoryChange = (index, selectedCategory) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated[index].category = selectedCategory;
+        updated[index].subCategory = [];
+        formik.setFieldValue("selectedCategories", updated);
+
+        const selectedCat = categoryMappings.find(
+            (c) => c.categoryId === selectedCategory?.value
+        );
+
+        const subOptions = selectedCat?.subcategories
+            ? selectedCat.subcategories.map((s) => ({
+                value: s.subCategoryId,
+                label: s.subCategoryName,
+            }))
+            : [];
+
+        const newSubOptions = cloneDeep(subOptionsByRow);
+        newSubOptions[index] = subOptions;
+        setSubOptionsByRow(newSubOptions);
+    };
+
+    // Subcategory change handler
+    const handleRowSubCategoryChange = (index, selectedSubs) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated[index].subCategory = selectedSubs;
+        formik.setFieldValue("selectedCategories", updated);
+    };
+
+
+    // Add another category
+    const onAddAnotherCategoryHandler = (e) => {
+        e?.preventDefault();
+        const updated = cloneDeep(formik.values.selectedCategories);
+        updated.push({ category: null, subCategory: [] });
+        formik.setFieldValue("selectedCategories", updated);
+        setSubOptionsByRow((prev) => [...prev, []]);
+    };
+
+    // Remove category
+    const onRemovedCategoryHandler = (index) => {
+        const updated = cloneDeep(formik.values.selectedCategories);
+        if (updated.length === 1) return;
+        updated.splice(index, 1);
+        formik.setFieldValue("selectedCategories", updated);
+
+        const newSubOptions = cloneDeep(subOptionsByRow);
+        newSubOptions.splice(index, 1);
+        setSubOptionsByRow(newSubOptions);
+    };
 
     document.title = "Create Course | Classplus";
 
@@ -744,6 +1003,7 @@ const CreateCourse = () => {
                                                     <Row>
                                                         <Col lg={6}>
                                                             <Row>
+                                                                {/* Course Name */}
                                                                 <Col lg={12}>
                                                                     <div className="mb-3">
                                                                         <Label
@@ -757,118 +1017,144 @@ const CreateCourse = () => {
                                                                             className="form-control"
                                                                             id="gen-info-course-input"
                                                                             placeholder="Enter Course Name"
+                                                                            name="courseName"
+                                                                            value={formik.values.courseName}
+                                                                            onChange={formik.handleChange}
                                                                         />
+                                                                        {formik.touched.courseName && formik.errors.courseName && (
+                                                                            <div className="text-danger">{formik.errors.courseName}</div>
+                                                                        )}
                                                                     </div>
                                                                 </Col>
+
+                                                                {/* Description */}
                                                                 <Col lg={12}>
                                                                     <div className="mb-3">
                                                                         <Label className="form-label">Description</Label>
                                                                         <CKEditor
                                                                             editor={ClassicEditor}
-                                                                            data="<p>Hello from CKEditor 5!</p>"
-                                                                            onReady={(editor) => {
-                                                                                // You can store the "editor" and use when it is needed.
-
+                                                                            data={editorData}
+                                                                            onChange={(event, editor) => {
+                                                                                const data = editor.getData();
+                                                                                setEditorData(data);
+                                                                                formik.setFieldValue("courseDescription", data);
                                                                             }}
-                                                                        // onChange={(editor) => {
-                                                                        //     editor.getData();
-                                                                        // }}
+                                                                        />
+                                                                        {formik.touched.courseDescription && formik.errors.courseDescription && (
+                                                                            <div className="text-danger">{formik.errors.courseDescription}</div>
+                                                                        )}
+                                                                    </div>
+                                                                </Col>
+
+                                                                {/* Thumbnail */}
+                                                                <Col lg={12}>
+                                                                    <div>
+                                                                        <Label className="form-label" htmlFor="project-thumbnail-img">
+                                                                            Thumbnail Image
+                                                                        </Label>
+                                                                        <Input
+                                                                            className="form-control"
+                                                                            id="project-thumbnail-img"
+                                                                            type="file"
+                                                                            accept="image/png, image/gif, image/jpeg"
+                                                                            onChange={(e) =>
+                                                                                formik.setFieldValue("courseImage", e.currentTarget.files[0])
+                                                                            }
                                                                         />
                                                                     </div>
                                                                 </Col>
-                                                                <Col lg={12}>
-                                                                    <div className="">
-                                                                        <Label className="form-label" htmlFor="project-thumbnail-img">Thumbnail Image</Label>
-                                                                        <Input className="form-control" id="project-thumbnail-img" type="file" accept="image/png, image/gif, image/jpeg" />
-                                                                    </div>
-                                                                </Col>
                                                             </Row>
-                                                            {
-                                                                categoryMappings.map((mapping, index) => (
-                                                                    <div className="mb-3 mt-3 mb-lg-0" key={index}>
-                                                                        <Row >
-                                                                            <Col lg={5}>
-                                                                                <div className="mb-3 mb-lg-0">
-                                                                                    <Label htmlFor="choices-Category-input" className="form-label">Category</Label>
-                                                                                    <Select
-                                                                                        value={category}
-                                                                                        onChange={(category) => {
-                                                                                            setCategory(category);
-                                                                                        }}
-                                                                                        options={courseCategory}
-                                                                                        id="choices-single-default"
-                                                                                        className="js-example-basic-single mb-0"
-                                                                                        name="category"
-                                                                                    />
-                                                                                </div>
-                                                                            </Col>
-                                                                            <Col lg={5}>
-                                                                                <div className="mb-3 mb-lg-0">
-                                                                                    <Label htmlFor="choices-SubCategory-input" className="form-label">Sub Category</Label>
 
-                                                                                    <Select
-                                                                                        value={subCategory}
-                                                                                        onChange={(subCategory) => {
-                                                                                            setSubCategory(subCategory);
-                                                                                        }}
-                                                                                        options={courseSubCategory}
-                                                                                        id="choices-single-default"
-                                                                                        className="js-example-basic-single mb-0"
-                                                                                        name="subCategory"
-                                                                                    />
-                                                                                </div>
-                                                                            </Col>
-                                                                            {categoryMappings.length !== 1 && (<Col lg={2}>
+                                                            {/* Category Rows */}
+                                                            <div className="mb-3 mt-3 mb-lg-0">
+                                                                {formik.values.selectedCategories.map((row, index) => (
+                                                                    <Row key={index} className="mb-2 align-items-center">
+                                                                        {/* Category */}
+                                                                        <Col lg={5}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <Label className="form-label">Category</Label>
+                                                                                <Select
+                                                                                    value={row.category}
+                                                                                    onChange={(selected) =>
+                                                                                        handleRowCategoryChange(index, selected)
+                                                                                    }
+                                                                                    options={categoryMappings.map((cat) => ({
+                                                                                        value: cat.categoryId,
+                                                                                        label: cat.categoryName,
+                                                                                    }))}
+                                                                                    className="js-example-basic-single mb-0"
+                                                                                    name={`category-${index}`}
+                                                                                    placeholder="Select Category"
+                                                                                />
+                                                                            </div>
+                                                                        </Col>
+
+                                                                        {/* Subcategory (Multi) */}
+                                                                        <Col lg={5}>
+                                                                            <div className="mb-3 mb-lg-0">
+                                                                                <Label className="form-label">Sub Category</Label>
+                                                                                <Select
+                                                                                    value={row.subCategory}
+                                                                                    onChange={(selectedSub) =>
+                                                                                        handleRowSubCategoryChange(index, selectedSub)
+                                                                                    }
+                                                                                    options={subOptionsByRow[index] || []}
+                                                                                    className="js-example-basic-single mb-0"
+                                                                                    name={`subCategory-${index}`}
+                                                                                    placeholder="Select Sub Category"
+                                                                                    isDisabled={!row.category}
+                                                                                    isMulti={true}
+                                                                                />
+                                                                            </div>
+                                                                        </Col>
+
+                                                                        {/* Remove category row */}
+                                                                        {formik.values.selectedCategories.length !== 1 && (
+                                                                            <Col lg={2}>
                                                                                 <Label />
                                                                                 <div className="mb-3 mb-lg-0">
-                                                                                    <Link to="#" onClick={() => {
-                                                                                        onRemovedCategoryHandler(index);
-                                                                                    }}>
-                                                                                        <i class="ri-delete-bin-line mt-3" ></i>
+                                                                                    <Link
+                                                                                        to="#"
+                                                                                        onClick={(e) => {
+                                                                                            e.preventDefault();
+                                                                                            onRemovedCategoryHandler(index);
+                                                                                        }}
+                                                                                    >
+                                                                                        <i className="ri-delete-bin-line mt-3"></i>
                                                                                     </Link>
                                                                                 </div>
-                                                                            </Col>)}
-                                                                        </Row>
-                                                                    </div>
-                                                                ))
-                                                            }
+                                                                            </Col>
+                                                                        )}
+                                                                    </Row>
+                                                                ))}
+                                                            </div>
 
+                                                            {/* Add Another Category */}
                                                             <Row>
                                                                 <Col lg={6}>
                                                                     <div className="mb-3 mt-3 mb-lg-0">
-                                                                        <p><Link to="#" className="link-info" onClick={onAddAnotherCategoryHandler}><i class="ri-add-circle-fill"></i> Add Another Category</Link></p>
+                                                                        <p>
+                                                                            <Link
+                                                                                to="#"
+                                                                                className="link-info"
+                                                                                onClick={onAddAnotherCategoryHandler}
+                                                                            >
+                                                                                <i className="ri-add-circle-fill"></i> Add Another Category
+                                                                            </Link>
+                                                                        </p>
                                                                     </div>
                                                                 </Col>
                                                             </Row>
                                                         </Col>
                                                     </Row>
-                                                    <Row>
-
-                                                    </Row>
-
-
-                                                    {/* <div className="mb-3">
-                                                        <Label
-                                                            className="form-label"
-                                                            htmlFor="gen-info-password-input"
-                                                        >
-                                                            Password
-                                                        </Label>
-                                                        <Input
-                                                            type="password"
-                                                            className="form-control"
-                                                            id="gen-info-password-input"
-                                                            placeholder="Enter Password"
-                                                        />
-                                                    </div> */}
                                                 </div>
+
+                                                {/* Edit Price Button */}
                                                 <div className="d-flex align-items-start gap-3 mt-4">
                                                     <button
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
-                                                        onClick={() => {
-                                                            toggleTab(activeTab + 1, 33);
-                                                        }}
+                                                        onClick={formik.handleSubmit}
                                                     >
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                         Edit Price
@@ -877,13 +1163,13 @@ const CreateCourse = () => {
                                             </TabPane>
 
                                             <TabPane tabId={2}>
-                                                <Form
+                                                {/* <Form
                                                     onSubmit={(e) => {
                                                         e.preventDefault();
                                                         coursePricingValidation.handleSubmit();
                                                         return false;
                                                     }}
-                                                    action="#">
+                                                    action="#"> */}
                                                     <div>
                                                         <div className="mb-3">
                                                             <Row>
@@ -957,23 +1243,19 @@ const CreateCourse = () => {
                                                                                                 type="number"
                                                                                                 className="form-control"
                                                                                                 id="singleValidityDuration"
-                                                                                                // placeholder="Enter Stocks"
+                                                                                                placeholder="Enter duration"
                                                                                                 name="singleValidityDuration"
-                                                                                            // value={validation.values.stock || ""}
-                                                                                            // onBlur={validation.handleBlur}
-                                                                                            // onChange={validation.handleChange}
-                                                                                            // invalid={validation.errors.stock && validation.touched.stock ? true : false}
+                                                                                                value={singleValidityDuration}
+                                                                                                onChange={(e) => setSingleValidityDuration(e.target.value)}
                                                                                             />
                                                                                         </div>
                                                                                     </div>
                                                                                 </Col>
-                                                                                <Col lg={3} >
+                                                                                <Col lg={3}>
                                                                                     <div className="mt-3 mb-3 mb-lg-0">
                                                                                         <Select
                                                                                             value={singleValidityType}
-                                                                                            onChange={(singleValidityType) => {
-                                                                                                setSingleValidityType(singleValidityType);
-                                                                                            }}
+                                                                                            onChange={(selected) => setSingleValidityType(selected)}
                                                                                             options={singleValidityDurationTypes}
                                                                                             id="select-course-duration-input"
                                                                                             className="js-example-basic-single mb-0"
@@ -982,129 +1264,70 @@ const CreateCourse = () => {
                                                                                     </div>
                                                                                 </Col>
                                                                             </Row>
+
                                                                             <Row>
                                                                                 <Col lg={8}>
-                                                                                    {coursePricingValidation.values.planType === "PAID" && (<Row>
-                                                                                        <Col sm={4}>
-                                                                                            <div className="mb-3">
-                                                                                                <label
-                                                                                                    className="form-label"
-                                                                                                    htmlFor="course-price-input"
-                                                                                                >
-                                                                                                    Price
-                                                                                                </label>
-                                                                                                <div className="input-group mb-3">
-                                                                                                    <span
-                                                                                                        className="input-group-text"
-                                                                                                        id="course-price-addon"
-                                                                                                    >
-                                                                                                        ₹
-                                                                                                    </span>
-                                                                                                    <Input
-                                                                                                        type="text"
-                                                                                                        className="form-control"
-                                                                                                        id="course-price-input"
-                                                                                                        placeholder="Enter price"
-                                                                                                        name="price"
-                                                                                                        aria-label="Price"
-                                                                                                        aria-describedby="course-price-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                                    />
-                                                                                                    {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
+                                                                                    {coursePricingValidation.values.planType === "PAID" && (
+                                                                                        <Row>
+                                                                                            <Col sm={4}>
+                                                                                                <div className="mb-3">
+                                                                                                    <label className="form-label" htmlFor="course-price-input">
+                                                                                                        Price
+                                                                                                    </label>
+                                                                                                    <div className="input-group mb-3">
+                                                                                                        <span className="input-group-text" id="course-price-addon">₹</span>
+                                                                                                        <Input
+                                                                                                            type="text"
+                                                                                                            className="form-control"
+                                                                                                            id="course-price-input"
+                                                                                                            placeholder="Enter price"
+                                                                                                            value={price}
+                                                                                                            onChange={(e) => setPrice(e.target.value)}
+                                                                                                        />
+                                                                                                    </div>
                                                                                                 </div>
-                                                                                            </div>
-                                                                                        </Col>
-                                                                                        <Col sm={4}>
-                                                                                            <div className="mb-3">
-                                                                                                <label
-                                                                                                    className="form-label"
-                                                                                                    htmlFor="course-discount-input"
-                                                                                                >
-                                                                                                    Discount
-                                                                                                </label>
-                                                                                                <div className="input-group mb-3">
-                                                                                                    <span
-                                                                                                        className="input-group-text"
-                                                                                                        id="course-discount-addon"
-                                                                                                    >
-                                                                                                        ₹
-                                                                                                    </span>
-                                                                                                    <Input
-                                                                                                        type="text"
-                                                                                                        className="form-control"
-                                                                                                        id="course-discount-input"
-                                                                                                        placeholder="Enter discount"
-                                                                                                        name="discount"
-                                                                                                        aria-label="Discount"
-                                                                                                        aria-describedby="course-discount-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                                    />
-                                                                                                    {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </Col>
-                                                                                        <Col sm={4}>
-                                                                                            <div className="mb-3">
-                                                                                                <label
-                                                                                                    className="form-label"
-                                                                                                    htmlFor="course-effictive-price-input"
-                                                                                                >
-                                                                                                    Effective Price
-                                                                                                </label>
-                                                                                                <div className="input-group mb-3">
-                                                                                                    <span
-                                                                                                        className="input-group-text"
-                                                                                                        id="course-effictive-price-addon"
-                                                                                                    >
-                                                                                                        ₹
-                                                                                                    </span>
-                                                                                                    <Input
-                                                                                                        type="text"
-                                                                                                        className="form-control "
-                                                                                                        id="course-effictive-price-input"
-                                                                                                        placeholder="Enter Effective price"
-                                                                                                        name="effectivePrice"
-                                                                                                        aria-label="Effective Price"
-                                                                                                        aria-describedby="course-effictive-price-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
-                                                                                                    />
-                                                                                                    {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </Col>
-                                                                                    </Row>)}
+                                                                                            </Col>
 
-                                                                                    {coursePricingValidation.values.planType === "FREE" && (
-                                                                                        <div className="mb-3 mb-lg-0">
-                                                                                            <Label htmlFor="select-course-duration-input" className="form-label">Target Course</Label>
-                                                                                            <Select
-                                                                                                value={null}
-                                                                                                onChange={(value) => { }}
-                                                                                                options={[]}
-                                                                                                id="select-course-duration-input"
-                                                                                                className="js-example-basic-single mb-0"
-                                                                                                name="targetCourseId"
-                                                                                            />
-                                                                                        </div>
+                                                                                            <Col sm={4}>
+                                                                                                <div className="mb-3">
+                                                                                                    <label className="form-label" htmlFor="course-discount-input">
+                                                                                                        Discount (%)
+                                                                                                    </label>
+                                                                                                    <div className="input-group mb-3">
+                                                                                                        <span className="input-group-text" id="course-discount-addon">₹</span>
+                                                                                                        <Input
+                                                                                                            type="text"
+                                                                                                            className="form-control"
+                                                                                                            id="course-discount-input"
+                                                                                                            placeholder="Enter discount"
+                                                                                                            value={discount}
+                                                                                                            onChange={(e) => setDiscount(e.target.value)}
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </Col>
+
+                                                                                            <Col sm={4}>
+                                                                                                <div className="mb-3">
+                                                                                                    <label className="form-label" htmlFor="course-effective-price-input">
+                                                                                                        Effective Price
+                                                                                                    </label>
+                                                                                                    <div className="input-group mb-3">
+                                                                                                        <span className="input-group-text" id="course-effective-price-addon">₹</span>
+                                                                                                        <Input
+                                                                                                            type="text"
+                                                                                                            className="form-control"
+                                                                                                            id="course-effective-price-input"
+                                                                                                            placeholder="Enter effective price"
+                                                                                                            value={effectivePrice}
+                                                                                                            onChange={(e) => setEffectivePrice(e.target.value)}
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </Col>
+                                                                                        </Row>
                                                                                     )}
-
                                                                                 </Col>
-
                                                                             </Row>
                                                                         </>
                                                                     )}
@@ -1122,8 +1345,16 @@ const CreateCourse = () => {
                                                                                             onCancel={onCancelMultiValidityHandler}
                                                                                             onDelete={onDeleteMultiValidityHandler}
                                                                                             onSave={onSaveMultiValidityHandler}
-                                                                                        />))
-                                                                                    }
+                                                                                            onUpdate={(planId, updatedPlan) => {
+                                                                                                const copy = [...MultiValidityPlansData];
+                                                                                                const idx = copy.findIndex((p) => p.planId === planId);
+                                                                                                if (idx !== -1) {
+                                                                                                    copy[idx] = { ...copy[idx], ...updatedPlan };
+                                                                                                    setMultiValidityPlansData(copy);
+                                                                                                }
+                                                                                            }}
+                                                                                        />
+                                                                                    ))}
                                                                                 </Col>
                                                                             </Row>
                                                                             <Row>
@@ -1135,30 +1366,33 @@ const CreateCourse = () => {
                                                                         </div>
                                                                     </>)}
 
-                                                                    {
-                                                                        courseValidityType && courseValidityType.value === "CourseExpiryDate" && (
-                                                                            <div className="mt-3 mb-3" >
-                                                                                <Row>
-                                                                                    <Col lg={8}>
-                                                                                        <Row>
-                                                                                            <Col lg={6}>
-                                                                                                <div>
-                                                                                                    <Label className="form-label mb-2">Expiry Date</Label>
-                                                                                                    <Flatpickr
-                                                                                                        className="form-control"
-                                                                                                        options={{
-                                                                                                            dateFormat: "d M, Y",
+                                                                    {courseValidityType && courseValidityType.value === "CourseExpiryDate" && (
+                                                                        <div className="mt-3 mb-3" >
+                                                                            <Row>
+                                                                                <Col lg={8}>
+                                                                                    <Row>
+                                                                                        <Col lg={6}>
+                                                                                            <div>
+                                                                                                <Label className="form-label mb-2">Expiry Date</Label>
+                                                                                                <Flatpickr
+                                                                                                    className="form-control"
+                                                                                                    options={{
+                                                                                                        dateFormat: "d M, Y",
 
-                                                                                                        }}
-                                                                                                    />
-                                                                                                </div>
-                                                                                            </Col>
-                                                                                        </Row>
-                                                                                    </Col>
-                                                                                </Row>
-                                                                            </div>
-                                                                        )
-                                                                    }
+                                                                                                    }}
+                                                                                                    name="expiryDate"
+                                                                                                    value={coursePricingValidation.values.expiryDate}
+                                                                                                    onChange={(date) =>
+                                                                                                        coursePricingValidation.setFieldValue("expiryDate", date[0])
+                                                                                                    }
+                                                                                                />
+                                                                                            </div>
+                                                                                        </Col>
+                                                                                    </Row>
+                                                                                </Col>
+                                                                            </Row>
+                                                                        </div>
+                                                                    )}
 
                                                                     {courseValidityType && (courseValidityType.value === "LifetimeValidity" || courseValidityType.value === "CourseExpiryDate") && (
                                                                         <div className="mt-3 mb-3" >
@@ -1188,14 +1422,12 @@ const CreateCourse = () => {
                                                                                                         name="price"
                                                                                                         aria-label="Price"
                                                                                                         aria-describedby="course-price-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                        value={coursePricingValidation.values.price}
+                                                                                                        onChange={coursePricingValidation.handleChange}
                                                                                                     />
                                                                                                     {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
+                                                                                                        <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                                                    ) : null} */}
                                                                                                 </div>
                                                                                             </div>
                                                                                         </Col>
@@ -1219,17 +1451,15 @@ const CreateCourse = () => {
                                                                                                         className="form-control"
                                                                                                         id="course-discount-input"
                                                                                                         placeholder="Enter discount"
-                                                                                                        name="discount"
+                                                                                                        name="discountPercent"
                                                                                                         aria-label="Discount"
                                                                                                         aria-describedby="course-discount-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                        value={coursePricingValidation.values.discountPercent}
+                                                                                                        onChange={coursePricingValidation.handleChange}
                                                                                                     />
                                                                                                     {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
+                                                                                                        <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                                                    ) : null} */}
                                                                                                 </div>
                                                                                             </div>
                                                                                         </Col>
@@ -1256,14 +1486,12 @@ const CreateCourse = () => {
                                                                                                         name="effectivePrice"
                                                                                                         aria-label="Effective Price"
                                                                                                         aria-describedby="course-effictive-price-addon"
-                                                                                                    // value={validation.values.price || ""}
-                                                                                                    // onBlur={validation.handleBlur}
-                                                                                                    // onChange={validation.handleChange}
-                                                                                                    // invalid={validation.errors.price && validation.touched.price ? true : false}
+                                                                                                        value={coursePricingValidation.values.effectivePrice}
+                                                                                                        onChange={coursePricingValidation.handleChange}
                                                                                                     />
                                                                                                     {/* {validation.errors.price && validation.touched.price ? (
-                                                                                <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
-                                                                            ) : null} */}
+                                                                                                        <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
+                                                                                                    ) : null} */}
                                                                                                 </div>
                                                                                             </div>
                                                                                         </Col>
@@ -1293,6 +1521,7 @@ const CreateCourse = () => {
                                                             </Row>
                                                         </div>
                                                     </div>
+                                                    {/* Buttons */}
                                                     <div className="d-flex align-items-start gap-3 mt-4">
                                                         <button
                                                             type="button"
@@ -1307,15 +1536,12 @@ const CreateCourse = () => {
                                                         <button
                                                             type="button"
                                                             className="btn btn-success btn-label right ms-auto nexttab nexttab"
-                                                            onClick={() => {
-                                                                toggleTab(activeTab + 1, 67);
-                                                            }}
-                                                        >
+                                                            onClick={coursePricingValidation.handleSubmit}>
                                                             <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                             Add Content
                                                         </button>
                                                     </div>
-                                                </Form>
+                                                {/* </Form> */}
                                             </TabPane>
 
                                             <TabPane tabId={3}>
@@ -1423,6 +1649,7 @@ const CreateCourse = () => {
                                                     </button>
                                                 </div>
                                             </TabPane>
+
                                             <TabPane tabId={4}>
                                                 <div>
                                                     <div className="text-center">
