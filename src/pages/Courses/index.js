@@ -54,46 +54,19 @@ const Courses = () => {
     //#endregion
 
     //#region Search Course
-    const handleSearch = async () => {
-        // If input is empty, fetch all courses again
+    const handleSearch = () => {
+        // If input is empty, show all courses again
         if (!searchTerm.trim()) {
             fetchCourses();
             return;
         }
 
-        setLoading(true);
-        try {
-            // Find course from list by name
-            const foundCourse = courseList.find(course =>
-                course.courseName.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+        // Filter courses by name
+        const filteredCourses = courseList.filter(course =>
+            course.courseName.toLowerCase().includes(searchTerm.toLowerCase())
+        );
 
-            const payload = foundCourse
-                ? {
-                    courseId: foundCourse.courseId,
-                    courseName: foundCourse.courseName,
-                    courseStatus: foundCourse.status
-                }
-                : {
-                    courseId: null,
-                    courseName: searchTerm,
-                    courseStatus: null
-                };
-
-            const response = await getCourseDetailsAPI(payload);
-
-            // Handle response properly
-            if (response?.status === true && response?.data) {
-                setCourseList(Array.isArray(response.data) ? response.data : [response.data]);
-            } else {
-                setCourseList([]);
-            }
-        } catch (error) {
-            console.error("Error fetching course details:", error);
-            setCourseList([]);
-        } finally {
-            setLoading(false);
-        }
+        setCourseList(filteredCourses);
     };
 
     // Search on Enter key
