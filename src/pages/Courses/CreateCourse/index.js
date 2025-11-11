@@ -45,14 +45,14 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
+import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getCourseListAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
 import { AddVideo } from "./Modals/AddVideo";
 import { AddDocument } from "./Modals/AddDocument";
 import { AddImage } from "./Modals/AddImage";
-
+import CreatableSelect from "react-select/creatable";
 
 
 const CreateCourse = () => {
@@ -86,6 +86,7 @@ const CreateCourse = () => {
             }
         ]
     }]);
+    const [courseList, setCourseList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState(null);
     const [subCategory, setSubCategory] = useState(null);
@@ -628,6 +629,25 @@ const CreateCourse = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     }
 
+    //#region Fetch All Courses
+    const fetchCourses = async () => {
+        try {
+            const response = await getCourseListAPI();
+            if (response?.status === true && Array.isArray(response?.data)) {
+                setCourseList(response.data);
+            } else {
+                setCourseList([]);
+            }
+        } catch (error) {
+            console.error("Error fetching courses:", error);
+            setCourseList([]);
+        }
+    };
+
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
     // Formik setup of edit price
     const coursePricingValidation = useFormik({
         enableReinitialize: true,
@@ -644,6 +664,7 @@ const CreateCourse = () => {
         onSubmit: async (values) => {
             try {
                 let payload = null;
+                const planType = coursePricingValidation.values.planType;
 
                 if (courseValidityType?.value === "MultipleValidity" && MultiValidityPlansData.length === 0) {
                     alert("Please add at least one validity option before proceeding.");
@@ -665,6 +686,10 @@ const CreateCourse = () => {
                         },
                         draftFlag: true,
                     };
+                    // Add targetCourseId only if planType is FREE
+                    if (planType === "FREE" && values.targetCourseId) {
+                        payload.targetCourseId = values.targetCourseId;
+                    }
                 }
 
                 // MULTIPLE VALIDITY PAYLOAD
@@ -713,6 +738,11 @@ const CreateCourse = () => {
                         },
                         draftFlag: true,
                     };
+
+                    // Add targetCourseId only if planType is FREE
+                    if (planType === "FREE" && values.targetCourseId) {
+                        payload.targetCourseId = values.targetCourseId;
+                    }
                 }
 
                 if (!payload) {
@@ -746,6 +776,56 @@ const CreateCourse = () => {
         },
     });
 
+    // Validation for enabling "Add Content" button
+    const isPriceFormValid = () => {
+        const planType = coursePricingValidation.values.planType;
+
+        // must have plan type and course validity type
+        if (!planType || !courseValidityType) return false;
+
+        // PAID Course Validations
+        if (planType === "PAID") {
+            if (courseValidityType.value === "SingleValidity") {
+                return (
+                    singleValidityDuration &&
+                    singleValidityType &&
+                    price &&
+                    discount !== "" &&
+                    effectivePrice !== ""
+                );
+            }
+
+            if (courseValidityType.value === "MultipleValidity") {
+                return MultiValidityPlansData.length > 0;
+            }
+
+            if (courseValidityType.value === "LifetimeValidity") {
+                return (
+                    coursePricingValidation.values.price !== "" &&
+                    coursePricingValidation.values.effectivePrice !== ""
+                );
+            }
+
+            if (courseValidityType.value === "CourseExpiryDate") {
+                return (
+                    coursePricingValidation.values.expiryDate &&
+                    coursePricingValidation.values.price !== "" &&
+                    coursePricingValidation.values.effectivePrice !== ""
+                );
+            }
+        }
+
+        // FREE Course Validations
+        if (planType === "FREE") {
+            if (courseValidityType.value === "CourseExpiryDate") {
+                return !!coursePricingValidation.values.expiryDate;
+            }
+            // Free course can pass if validity type selected
+            return true;
+        }
+
+        return false;
+    };
 
     // Fetch all categories
     useEffect(() => {
@@ -787,26 +867,21 @@ const CreateCourse = () => {
             try {
                 const categoryMappingsPayload = values.selectedCategories
                     .filter((r) => r.category)
-                    .map((r) => {
-                        const isMultiple =
-                            Array.isArray(r.subCategory) && r.subCategory.length > 1;
-
-                        return {
-                            categoryId: r.category.value,
-                            categoryName: r.category.label,
-                            subcategories: isMultiple
-                                ? r.subCategory.map((sub) => ({
-                                    subCategoryName: sub.label,
-                                }))
-                                : r.subCategory.length === 1
-                                    ? [
-                                        {
-                                            subCategoryId: r.subCategory[0].value,
-                                        },
-                                    ]
-                                    : [],
-                        };
-                    });
+                    .map((r) => ({
+                        categoryId: r.category.value,
+                        categoryName: r.category.label,
+                        subcategories:
+                            Array.isArray(r.subCategory) && r.subCategory.length > 0
+                                ? r.subCategory.map((sub) => {
+                                    // If existing subcategory has ID - send subCategoryId
+                                    if (sub.value && typeof sub.value === "number") {
+                                        return { subCategoryId: sub.value };
+                                    }
+                                    // Else treat it as new - send subCategoryName
+                                    return { subCategoryName: sub.label };
+                                })
+                                : [],
+                    }));
 
                 const payload = {
                     courseName: values.courseName,
@@ -816,8 +891,9 @@ const CreateCourse = () => {
                         : "http://default-image-url.com",
                     categoryMappings: categoryMappingsPayload,
                 };
+                console.log("payload--",payload);
 
-                // If courseId exists, update the draft course
+                // If courseId exists, update draft course
                 if (courseData?.courseId) {
                     payload.courseId = courseData?.courseId;
                     payload.courseStatus = courseData?.courseStatus;
@@ -891,6 +967,12 @@ const CreateCourse = () => {
         newSubOptions.splice(index, 1);
         setSubOptionsByRow(newSubOptions);
     };
+
+    // Map fetched courses to dropdown options
+    const courseOptions = courseList.map((course) => ({
+        label: course.courseName,
+        value: course.courseId,
+    }));
 
     document.title = "Create Course | Classplus";
 
@@ -1130,7 +1212,7 @@ const CreateCourse = () => {
                                                                         <Col lg={5}>
                                                                             <div className="mb-3 mb-lg-0">
                                                                                 <Label className="form-label">Sub Category</Label>
-                                                                                <Select
+                                                                                <CreatableSelect
                                                                                     value={row.subCategory}
                                                                                     onChange={(selectedSub) =>
                                                                                         handleRowSubCategoryChange(index, selectedSub)
@@ -1138,9 +1220,11 @@ const CreateCourse = () => {
                                                                                     options={subOptionsByRow[index] || []}
                                                                                     className="js-example-basic-single mb-0"
                                                                                     name={`subCategory-${index}`}
-                                                                                    placeholder="Select Sub Category"
+                                                                                    placeholder="Select or add Sub Category"
                                                                                     isDisabled={!row.category}
                                                                                     isMulti={true}
+                                                                                    // allow creating new options
+                                                                                    formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
                                                                                 />
                                                                             </div>
                                                                         </Col>
@@ -1192,6 +1276,7 @@ const CreateCourse = () => {
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
                                                         onClick={formik.handleSubmit}
+                                                        disabled={!formik.isValid || !formik.dirty} // Disable until form is valid
                                                     >
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                         Edit Price
@@ -1222,7 +1307,16 @@ const CreateCourse = () => {
                                                                                         name="planType"
                                                                                         value={"PAID"}
                                                                                         id="paidCourse"
-                                                                                        onChange={coursePricingValidation.handleChange}
+                                                                                        onChange={(e) => {
+                                                                                            coursePricingValidation.handleChange(e);
+                                                                                            setCourseValidityType(null);       // Reset validity type
+                                                                                            setSingleValidityDuration("");     // clear single validity data
+                                                                                            setSingleValidityType(null);
+                                                                                            setPrice("");
+                                                                                            setDiscount("");
+                                                                                            setEffectivePrice("");
+                                                                                            setMultiValidityPlansData([]);     // clear multiple validity plans
+                                                                                        }}
                                                                                         checked={coursePricingValidation.values.planType === "PAID"}
                                                                                     />
                                                                                     <Label className="form-check-label" htmlFor="paidCourse">
@@ -1239,7 +1333,16 @@ const CreateCourse = () => {
                                                                                         name="planType"
                                                                                         value={"FREE"}
                                                                                         id="freeCourse"
-                                                                                        onChange={coursePricingValidation.handleChange}
+                                                                                        onChange={(e) => {
+                                                                                            coursePricingValidation.handleChange(e);
+                                                                                            setCourseValidityType(null);       // Reset validity type
+                                                                                            setSingleValidityDuration("");
+                                                                                            setSingleValidityType(null);
+                                                                                            setPrice("");
+                                                                                            setDiscount("");
+                                                                                            setEffectivePrice("");
+                                                                                            setMultiValidityPlansData([]);
+                                                                                        }}
                                                                                         checked={coursePricingValidation.values.planType === "FREE"}
                                                                                     />
                                                                                     <Label className="form-check-label" htmlFor="freeCourse">
@@ -1364,11 +1467,44 @@ const CreateCourse = () => {
                                                                                         </Col>
                                                                                     </Row>
                                                                                 )}
+
+                                                                                {coursePricingValidation.values.planType === "FREE" && (
+                                                                                    <div className="mb-3 mb-lg-0">
+                                                                                        <Label
+                                                                                            htmlFor="select-course-duration-input"
+                                                                                            className="form-label"
+                                                                                        >
+                                                                                            Target Course
+                                                                                        </Label>
+                                                                                        <Select
+                                                                                            value={
+                                                                                                courseOptions.find(
+                                                                                                    (option) =>
+                                                                                                        option.value ===
+                                                                                                        coursePricingValidation.values.targetCourseId
+                                                                                                ) || null
+                                                                                            }
+                                                                                            onChange={(selected) =>
+                                                                                                coursePricingValidation.setFieldValue(
+                                                                                                    "targetCourseId",
+                                                                                                    selected?.value || null
+                                                                                                )
+                                                                                            }
+                                                                                            options={courseOptions}
+                                                                                            id="select-course-duration-input"
+                                                                                            className="js-example-basic-single mb-0"
+                                                                                            name="targetCourseId"
+                                                                                            placeholder="Select Target Course"
+                                                                                            isClearable
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
                                                                             </Col>
                                                                         </Row>
                                                                     </>
                                                                 )}
 
+                                                                {/* Multi Validity Block */}
                                                                 {courseValidityType && courseValidityType.value === "MultipleValidity" && (<>
                                                                     <div className="mt-3" >
                                                                         <Row>
@@ -1402,7 +1538,8 @@ const CreateCourse = () => {
 
                                                                     </div>
                                                                 </>)}
-
+                                                                
+                                                                {/* Expiry Date Block */}
                                                                 {courseValidityType && courseValidityType.value === "CourseExpiryDate" && (
                                                                     <div className="mt-3 mb-3" >
                                                                         <Row>
@@ -1431,6 +1568,7 @@ const CreateCourse = () => {
                                                                     </div>
                                                                 )}
 
+                                                                {/* Lifetime Validity Block */}
                                                                 {courseValidityType && (courseValidityType.value === "LifetimeValidity" || courseValidityType.value === "CourseExpiryDate") && (
                                                                     <div className="mt-3 mb-3" >
                                                                         <Row>
@@ -1537,14 +1675,32 @@ const CreateCourse = () => {
 
                                                                                 {coursePricingValidation.values.planType === "FREE" && (
                                                                                     <div className="mb-3 mb-lg-0">
-                                                                                        <Label htmlFor="select-course-duration-input" className="form-label">Target Course</Label>
+                                                                                        <Label
+                                                                                            htmlFor="select-course-duration-input"
+                                                                                            className="form-label"
+                                                                                        >
+                                                                                            Target Course
+                                                                                        </Label>
                                                                                         <Select
-                                                                                            value={null}
-                                                                                            onChange={(value) => { }}
-                                                                                            options={[]}
+                                                                                            value={
+                                                                                                courseOptions.find(
+                                                                                                    (option) =>
+                                                                                                        option.value ===
+                                                                                                        coursePricingValidation.values.targetCourseId
+                                                                                                ) || null
+                                                                                            }
+                                                                                            onChange={(selected) =>
+                                                                                                coursePricingValidation.setFieldValue(
+                                                                                                    "targetCourseId",
+                                                                                                    selected?.value || null
+                                                                                                )
+                                                                                            }
+                                                                                            options={courseOptions}
                                                                                             id="select-course-duration-input"
                                                                                             className="js-example-basic-single mb-0"
                                                                                             name="targetCourseId"
+                                                                                            placeholder="Select Target Course"
+                                                                                            isClearable
                                                                                         />
                                                                                     </div>
                                                                                 )}
@@ -1573,7 +1729,8 @@ const CreateCourse = () => {
                                                     <button
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
-                                                        onClick={coursePricingValidation.handleSubmit}>
+                                                        onClick={coursePricingValidation.handleSubmit}
+                                                        disabled={!isPriceFormValid()}>
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                         Add Content
                                                     </button>
