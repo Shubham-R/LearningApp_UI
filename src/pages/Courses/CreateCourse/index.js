@@ -99,15 +99,7 @@ const CreateCourse = () => {
     const [discount, setDiscount] = useState("");
     const [effectivePrice, setEffectivePrice] = useState("");
     const [priceData, setPriceData] = useState("");
-    const [contents, setContents] = useState([{
-        "id": "1",
-        "name": "Bank Exams",
-        "type": "folder",
-        "metadata": {
-            "videoCount": 1,
-            "fileCount": 2
-        }
-    },]);
+    const [contents, setContents] = useState(null);
     const [modal_folder, setmodal_folder] = useState(false);
     function tog_folder() {
         setmodal_folder(!modal_folder);
@@ -127,6 +119,24 @@ const CreateCourse = () => {
     function tog_image() {
         setmodal_uploadImage(!modal_uploadImage);
     }
+
+    const onAddFolderHandler = (folderName) => {
+        const newFolder = {
+            id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
+            name: folderName,
+            type: "folder",
+            metadata: {
+                videoCount: 0,  
+                fileCount: 0    
+            }
+        };
+        if(contents && Array.isArray(contents)){
+            setContents([...contents, newFolder]);
+        }else{
+            setContents([newFolder]);
+        }
+    }      
+
 
 
 
@@ -1769,14 +1779,13 @@ const CreateCourse = () => {
                                                                                                                 <i className="ri-more-2-fill fs-16 align-bottom" />
                                                                                                             </DropdownToggle>
                                                                                                             <DropdownMenu className="dropdown-menu-end">
-                                                                                                                <DropdownItem className="view-item-btn">Open</DropdownItem>
-                                                                                                                <DropdownItem className="edit-folder-list" onClick={() => handleFolderClick(item)}>Rename</DropdownItem>
-                                                                                                                <DropdownItem onClick={() => { onClickFolderDelete(item); setDeleteAlt(true); }}>Delete</DropdownItem>
+                                                                                                                <DropdownItem className="view-item-btn">Edit</DropdownItem>
+                                                                                                                <DropdownItem className="edit-folder-list" >Remove</DropdownItem>
+                                                                                                                <DropdownItem >Locked</DropdownItem>
                                                                                                             </DropdownMenu>
                                                                                                         </UncontrolledDropdown>
                                                                                                     </Col>
                                                                                                 </Row>
-
                                                                                             </div>
 
                                                                                             {/* </div> */}
@@ -1787,7 +1796,7 @@ const CreateCourse = () => {
                                                                                         </CardBody>
                                                                                     </Card>
                                                                                 </Col>))}
-                                                                            {contents.length === 0 && (
+                                                                            {contents && contents.length === 0 && (
                                                                                 <Col xxl={12} className="col-6 folder-card" >
                                                                                     <div className="text-center py-5">
                                                                                         <lord-icon
@@ -1891,7 +1900,7 @@ const CreateCourse = () => {
                                 </CardBody>
                             </Card>
                         </Col>
-                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} />
+                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} />
                         <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} />
                         <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
                         <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
