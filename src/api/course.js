@@ -36,3 +36,7 @@ export const createPricingAPI = async (payload, contentType) => {
 export const updatePriceAPI = async (payload, contentType) => {
   return await putMethodCall(`${config.api.API_URL}/course-pricing-duration/update-pricing`, payload, contentType);
 };
+
+export const getCourseDetailAPI = async (params) => {
+  return await getMethodCall(`${config.api.API_URL}/course-categories/course-details?courseId=${params.courseId}&courseStatus=${params.courseStatus}`);
+};
