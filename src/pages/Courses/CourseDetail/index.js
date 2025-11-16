@@ -6,10 +6,14 @@ import {
     Col,
     Container,
     Row,
-    Button
+    Button,
+    Dropdown,
+    DropdownToggle,
+    DropdownMenu,
+    DropdownItem
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
-import { getCourseDetailsAPI ,getCourseDetailAPI} from "../../../api/course";
+import { getCourseDetailsAPI, getCourseDetailAPI } from "../../../api/course";
 
 const CourseDetails = () => {
     document.title = "Course Details | Classplus";
@@ -21,6 +25,11 @@ const CourseDetails = () => {
 
     const [courseDetails, setCourseDetails] = useState(null);    
     const [loading, setLoading] = useState(true);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+
+    const toggleDropdown = () => setDropdownOpen(prevState => !prevState);
+
+    const isOwner = JSON.parse(sessionStorage.getItem("authUser")).data.userId === courseDetails?.userId;
 
     useEffect(() => {
         fetchCourseDetails();
@@ -43,6 +52,30 @@ const CourseDetails = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEdit = () => {
+        navigate("/create-course");
+    };
+
+    const handleDelete = () => {
+        // Implement delete logic
+        console.log("Delete course");
+    };
+
+    const handleUnpublish = () => {
+        // Implement unpublish logic
+        console.log("Unpublish course");
+    };
+
+    const handleShare = () => {
+        // Implement share logic
+        console.log("Share course");
+    };
+
+    const handleMarkAsFeatured = () => {
+        // Implement mark as featured logic
+        console.log("Mark as featured");
     };
 
     if (loading) {
@@ -69,13 +102,13 @@ const CourseDetails = () => {
                         <Col lg={8}>
                             <Card>
                                 <CardBody>
-                                    <div className="mb-4">
+                                    {/* <div className="mb-4">
                                         <button
                                             type="button"
                                             className="btn btn-success right ms-auto nexttab d-flex justify-content-end"
                                             onClick={() => navigate("/create-course")}
                                         > Edit</button>
-                                    </div>
+                                    </div> */}
 
                                     {/* Course Name and Image Side by Side */}
                                     <Row className="mb-4">
@@ -265,15 +298,49 @@ const CourseDetails = () => {
                                         </div>
                                     </div>
 
-                                    {/* Share Button */}
+                                    {/* More Options Dropdown Button */}
                                     <div className="mt-3">
-                                        <button
-                                            type="button" outline
-                                            className="btn btn-success w-100"
-                                            onClick={() => navigate("/courses")}
-                                        >
-                                            <i className="ri-share-line me-1"></i> Share
-                                        </button>
+                                        <Dropdown isOpen={dropdownOpen} toggle={toggleDropdown} className="w-100">
+                                            <DropdownToggle 
+                                                tag="button"
+                                                className="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center"
+                                                style={{ border: '1px dashed #0ab39c' }}
+                                            >
+                                                <i className="ri-more-fill me-2"></i> More Options
+                                            </DropdownToggle>
+                                            <DropdownMenu className="w-100">
+                                                {/* Edit - Only visible to owner */}
+                                                {isOwner && (
+                                                    <DropdownItem onClick={handleEdit}>
+                                                        <i className="ri-edit-line me-2 text-muted"></i>
+                                                        Edit
+                                                    </DropdownItem>
+                                                )}
+                                                
+                                                {/* Delete - Only visible to owner */}
+                                                {isOwner && (
+                                                    <DropdownItem onClick={handleDelete}>
+                                                        <i className="ri-delete-bin-line me-2 text-muted"></i>
+                                                        Delete
+                                                    </DropdownItem>
+                                                )}
+                                                
+                                                <DropdownItem onClick={handleUnpublish}>
+                                                    <i className="ri-close-circle-line me-2 text-muted"></i>
+                                                    Unpublish
+                                                </DropdownItem>
+                                                
+                                                <DropdownItem onClick={handleShare}>
+                                                    <i className="ri-share-line me-2 text-muted"></i>
+                                                    Share
+                                                </DropdownItem>
+                                                
+                                                <DropdownItem onClick={handleMarkAsFeatured}>
+                                                    <i className="ri-star-line me-2 text-muted"></i>
+                                                    Mark as Featured
+                                                </DropdownItem>
+                                            </DropdownMenu>
+                                        </Dropdown>
                                     </div>
                                 </CardBody>
                             </Card>
