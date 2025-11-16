@@ -59,22 +59,18 @@ const CourseDetails = () => {
     };
 
     const handleDelete = () => {
-        // Implement delete logic
         console.log("Delete course");
     };
 
     const handleUnpublish = () => {
-        // Implement unpublish logic
         console.log("Unpublish course");
     };
 
     const handleShare = () => {
-        // Implement share logic
         console.log("Share course");
     };
 
     const handleMarkAsFeatured = () => {
-        // Implement mark as featured logic
         console.log("Mark as featured");
     };
 
