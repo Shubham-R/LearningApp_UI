@@ -9,7 +9,7 @@ import {
     Button
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
-import { getCourseDetailsAPI } from "../../../api/course";
+import { getCourseDetailsAPI ,getCourseDetailAPI} from "../../../api/course";
 
 const CourseDetails = () => {
     document.title = "Course Details | Classplus";
@@ -19,7 +19,7 @@ const CourseDetails = () => {
     const location = useLocation();
     const { courseName, courseStatus } = location.state || {};
 
-    const [courseDetails, setCourseDetails] = useState(null);
+    const [courseDetails, setCourseDetails] = useState(null);    
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,12 +34,12 @@ const CourseDetails = () => {
                 courseName: courseName,
                 courseStatus: courseStatus
             };
-            const response = await getCourseDetailsAPI(payload);
+            const response = await getCourseDetailAPI(payload);
             if (response?.status === true && response?.data) {
-                setCourseDetails(response.data);
+                setCourseDetails(response?.data);
             }
         } catch (error) {
-            console.error("Error fetching course details:", error);
+            toast.error("Failed to fetch course details", { autoClose: 3000 });
         } finally {
             setLoading(false);
         }
@@ -94,7 +94,7 @@ const CourseDetails = () => {
                                                     NEW
                                                 </span>
                                                 <img
-                                                    src={courseDetails?.courseImage || "https://picsum.photos/400/300"}
+                                                    src={courseDetails?.courseImageUrl || "https://picsum.photos/400/300"}
                                                     alt={courseDetails?.courseName}
                                                     className="img-fluid rounded w-100"
                                                     style={{ maxHeight: "200px", objectFit: "cover" }}
@@ -139,20 +139,28 @@ const CourseDetails = () => {
 
                                     {/* Category and Sub Category */}
                                     <Row className="mb-4">
+                                        {/* Header labels (same style as Price/Discount) */}
+                                        <Col md={6}>
+                                            <div>
+                                                <h5 className="fw-semibold mb-2">Category</h5>
+                                            </div>
+                                        </Col>
+                                        <Col md={6}>
+                                            <div>
+                                                <h5 className="fw-semibold mb-2">Sub Category</h5>
+                                            </div>
+                                        </Col>
+
+                                        {/* Data rows: one pair (Category | Sub Category) per mapping */}
                                         {courseDetails?.categoryMappings?.map((mapping, index) => (
                                             <React.Fragment key={index}>
                                                 <Col md={6}>
                                                     <div>
-                                                        <h5 className="fw-semibold mb-2">Category</h5>
-                                                        <p className="text-muted mb-0">
-                                                            {mapping.categoryName || "--"}
-                                                        </p>
+                                                        <p className="text-muted mb-0">{mapping.categoryName || "--"}</p>
                                                     </div>
                                                 </Col>
-
                                                 <Col md={6}>
                                                     <div>
-                                                        <h5 className="fw-semibold mb-2">Sub Category</h5>
                                                         <p className="text-muted mb-0">
                                                             {mapping.subcategories?.length
                                                                 ? mapping.subcategories.map(sub => sub.subCategoryName).join(", ")

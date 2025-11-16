@@ -84,6 +84,7 @@ const Login = (props) => {
                 .matches(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits"),
         }),
         onSubmit: async (values) => {
+            setLoading(true);
             try {
                 setupRecaptcha();
                 const phoneNumber = `+91${values.mobile}`;
@@ -96,7 +97,9 @@ const Login = (props) => {
 
                 setIsSignInWithNumber(true);
                 setConfirmationResult(confirmation)
+                setLoading(false); 
             } catch (error) {
+                setLoading(false); 
                 console.log("error: sign in with phone number: ", error);
             }
         },
@@ -192,6 +195,7 @@ const Login = (props) => {
                 data: response.data.userDetails,
             }
             sessionStorage.setItem("authUser", JSON.stringify(storeAuthData));
+            setLoading(false);
             navigate('/dashboard');
         } catch (error) {
             console.error('Error verifying OTP:', error);
@@ -291,7 +295,7 @@ const Login = (props) => {
                                                 </div> */}
 
                                                     <div className="mt-4">
-                                                        <Button color="success" disabled={error ? null : loading ? true : false} className="btn btn-success w-100" type="submit">
+                                                        <Button color="success" disabled={loading} className="btn btn-success w-100" type="submit">
                                                             {loading ? <Spinner size="sm" className='me-2'> Loading... </Spinner> : null}
                                                             Sign In
                                                         </Button>
@@ -331,8 +335,13 @@ const Login = (props) => {
                                                     ))}
                                                 </Row>
 
+
                                                 <div className="mt-3">
-                                                    <Button color="success" className="w-100">Confirm</Button>
+                                                    {/* <Button color="success" className="w-100">Confirm</Button> */}
+                                                    <Button color="success" className="w-100" type="submit" disabled={loading}>
+                                                        {loading ? <Spinner size="sm" className='me-2' /> : null}
+                                                        Confirm
+                                                    </Button>
                                                 </div>
                                             </form>
 
