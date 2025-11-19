@@ -27,26 +27,29 @@ import { getCourseDetailsAPI, getCourseListAPI } from "../../api/course";
 const Courses = () => {
     document.title = "Courses | Classplus";
     const [courseList, setCourseList] = useState([]);
+    const [allCourses, setAllCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
 
     //#region Fetch All Courses
     const fetchCourses = async () => {
-        setLoading(true);
-        try {
-            const response = await getCourseListAPI();
-            if (response?.status === true && Array.isArray(response?.data)) {
+         setLoading(true);
+         try {
+             const response = await getCourseListAPI();
+             if (response?.status === true && Array.isArray(response?.data)) {
+               setCourseList(response.data);
                 setCourseList(response.data);
-            } else {
-                setCourseList([]);
-            }
-        } catch (error) {
-            console.error("Error fetching courses:", error);
-            setCourseList([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+                setAllCourses(response.data);
+             } else {
+                 setCourseList([]);
+             }
+         } catch (error) {
+             console.error("Error fetching courses:", error);
+             setCourseList([]);
+         } finally {
+             setLoading(false);
+         }
+     };
 
     useEffect(() => {
         fetchCourses();
@@ -54,27 +57,29 @@ const Courses = () => {
     //#endregion
 
     //#region Search Course
-    const handleSearch = () => {
-        // If input is empty, show all courses again
-        if (!searchTerm.trim()) {
-            fetchCourses();
-            return;
-        }
+    const handleSearch = (term) => {
+       const t = (term || "").trim();
+       if (!t) {
+           setCourseList(allCourses);
+           return;
+       }
 
-        // Filter courses by name
-        const filteredCourses = courseList.filter(course =>
-            course.courseName.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        setCourseList(filteredCourses);
-    };
+       if (t.length >= 3) {
+           const filtered = allCourses.filter(course =>
+               (course.courseName || "").toLowerCase().includes(t.toLowerCase())
+           );
+           setCourseList(filtered);
+           return;
+       }
+       setCourseList(allCourses);
+   };
 
     // Search on Enter key
     const handleKeyDown = (e) => {
-        if (e.key === "Enter") {
-            handleSearch();
-        }
-    };
+       if (e.key === "Enter") {
+           handleSearch(searchTerm);
+       }
+   };
     //#endregion
 
     return (
@@ -87,7 +92,28 @@ const Courses = () => {
                             <Card>
                                 <CardHeader className="border-0">
                                     <div className="d-flex align-items-center">
-                                        <h5 className="card-title mb-0 flex-grow-1">Courses</h5>
+                                        {/* <h5 className="card-title mb-0 flex-grow-1">Courses</h5> */}
+                                        <Row className="card-title mb-0 flex-grow-1">
+                                            <Col md={6}>
+                                                {/* <h6 className="text-uppercase fs-12 mb-2">Search</h6> */}
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="Enter course name"
+                                                    value={searchTerm}
+                                                    onChange={(e) => {
+                                                        setSearchTerm(e.target.value);
+                                                        handleSearch(e.target.value);
+                                                    }}
+                                                    onKeyDown={handleKeyDown}
+                                                />
+                                            </Col>
+                                            {/* <Col md="auto">
+                                                <Button color="primary" onClick={handleSearch}>
+                                                    <i className="ri-search-line me-1"></i> Search
+                                                </Button>
+                                            </Col> */}
+                                        </Row>
                                         <div className="ms-2 col-sm-1 ">
                                             <Link
                                                 className="btn btn-success"
@@ -105,26 +131,9 @@ const Courses = () => {
                                             </Link>
                                         </div>
                                     </div>
-                                    <UncontrolledCollapse toggler="#filter-collapse" defaultOpen>
-                                        <Row className="mt-3 g-3 align-items-end">
-                                            <Col md={6}>
-                                                <h6 className="text-uppercase fs-12 mb-2">Search</h6>
-                                                <input
-                                                    type="text"
-                                                    className="form-control"
-                                                    placeholder="Enter course name"
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                    onKeyDown={handleKeyDown}
-                                                />
-                                            </Col>
-                                            <Col md="auto">
-                                                <Button color="primary" onClick={handleSearch}>
-                                                    <i className="ri-search-line me-1"></i> Search
-                                                </Button>
-                                            </Col>
-                                        </Row>
-                                    </UncontrolledCollapse>
+                                    {/* <UncontrolledCollapse toggler="#filter-collapse" defaultOpen> */}
+                                        
+                                    {/* </UncontrolledCollapse> */}
                                 </CardHeader>
                             </Card>
                         </Col>
