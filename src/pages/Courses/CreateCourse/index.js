@@ -45,7 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getCourseListAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
+import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
@@ -53,7 +53,7 @@ import { AddVideo } from "./Modals/AddVideo";
 import { AddDocument } from "./Modals/AddDocument";
 import { AddImage } from "./Modals/AddImage";
 import CreatableSelect from "react-select/creatable";
-
+import Swal from "sweetalert2";
 
 const CreateCourse = () => {
     const [activeTab, setactiveTab] = useState(1);
@@ -120,21 +120,22 @@ const CreateCourse = () => {
         setmodal_uploadImage(!modal_uploadImage);
     }
 
-    const onAddFolderHandler = (folderName) => {
+    const onAddFolderHandler = (folder) => {
         const newFolder = {
             id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
-            name: folderName,
+            name: folder?.data?.folderName,
             type: "folder",
             metadata: {
                 videoCount: 0,  
                 fileCount: 0    
             }
         };
-        if(contents && Array.isArray(contents)){
-            setContents([...contents, newFolder]);
-        }else{
-            setContents([newFolder]);
-        }
+        // if(contents && Array.isArray(contents)){
+        //     setContents([...contents, newFolder]);
+        // }else{
+        //     setContents([newFolder]);
+        // }
+        fetchFoldersByCourseId(courseData?.courseId || 80028);
     }      
 
 
@@ -770,16 +771,20 @@ const CreateCourse = () => {
 
                     if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
                         setPriceData(updatePriceResponse?.data);
-                        toggleTab(activeTab + 1, 67);
+                        // toggleTab(activeTab + 1, 67);
                     }
                 } else {
                     const response = await createPricingAPI(payload);
                     console.log("createPricingAPI Response:", response);
                     if (response?.status === true && response?.data) {
                         setPriceData(response?.data);
-                        toggleTab(activeTab + 1, 67);
+                        // toggleTab(activeTab + 1, 67);
                     }
                 }
+
+                // Call API to fetch Content - Tab 3 listing
+                fetchFoldersByCourseId(courseData?.courseId || 80028, "proceedToContentTab");
+
             } catch (error) {
                 console.error("Error creating pricing:", error);
             }
@@ -870,6 +875,7 @@ const CreateCourse = () => {
             courseName: "",
             courseDescription: "",
             courseImage: null,
+            courseImageId: null,
             selectedCategories: [{ category: null, subCategory: [] }],
         },
         validationSchema,
@@ -899,6 +905,7 @@ const CreateCourse = () => {
                     courseImageUrl: values.courseImage
                         ? values.courseImage.name
                         : "http://default-image-url.com",
+                    courseImageId: values.courseImageId,
                     categoryMappings: categoryMappingsPayload,
                 };
                 console.log("payload--",payload);
@@ -925,6 +932,47 @@ const CreateCourse = () => {
         },
     });
 
+    // Thumbnail upload handler
+    const handleThumbnailUpload = async (e) => {
+        const file = e.currentTarget.files[0];
+        if (!file) return;
+
+        console.log("file--", file);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await updateCourseImageAPI(formData);
+
+            console.log("Upload Response:", response);
+
+            if (response?.status) {
+                formik.setFieldValue("courseImageId", response?.data?.imageId || null);
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Image Uploaded Successfully",
+                    timer: 1200,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "Upload Failed",
+                    text: response?.error?.message || "Something went wrong."
+                });
+            }
+        } catch (err) {
+            console.error("Image upload failed:", err);
+
+            Swal.fire({
+                icon: "error",
+                title: "Upload Failed",
+                text: "Something went wrong while uploading the image."
+            });
+        }
+    };
 
     // Category change handler
     const handleRowCategoryChange = (index, selectedCategory) => {
@@ -956,7 +1004,6 @@ const CreateCourse = () => {
         formik.setFieldValue("selectedCategories", updated);
     };
 
-
     // Add another category
     const onAddAnotherCategoryHandler = (e) => {
         e?.preventDefault();
@@ -984,6 +1031,21 @@ const CreateCourse = () => {
         value: course.courseId,
     }));
 
+    // Fetch All folders by course ID
+    const fetchFoldersByCourseId = async (courseId, type) => {
+        try {
+            const response = await getAllFoldersByCourseIDAPI(courseId);
+            console.log("fetch folder list--", response);
+            if(response?.status === true) {
+                if(type) toggleTab(activeTab + 1, 67); // Move to Add Content tab
+                setContents(response?.data || []);
+            }
+
+        } catch (error) {
+            console.error("Error fetching folders by course ID:", error);
+        }
+    }
+         
     document.title = "Create Course | Classplus";
 
     return (
@@ -1018,9 +1080,9 @@ const CreateCourse = () => {
                                                             },
                                                             "rounded-pill"
                                                         )}
-                                                        onClick={() => {
-                                                            toggleTab(1, 0);
-                                                        }}
+                                                        // onClick={() => {
+                                                        //     toggleTab(1, 0);
+                                                        // }}
                                                         tag="button"
                                                     >
                                                         1
@@ -1044,9 +1106,9 @@ const CreateCourse = () => {
                                                             },
                                                             "rounded-pill"
                                                         )}
-                                                        onClick={() => {
-                                                            toggleTab(2, 33);
-                                                        }}
+                                                        // onClick={() => {
+                                                        //     toggleTab(2, 33);
+                                                        // }}
                                                         tag="button"
                                                     >
                                                         2
@@ -1071,9 +1133,9 @@ const CreateCourse = () => {
                                                             },
                                                             "rounded-pill"
                                                         )}
-                                                        onClick={() => {
-                                                            toggleTab(3, 67);
-                                                        }}
+                                                        // onClick={() => {
+                                                        //     toggleTab(3, 67);
+                                                        // }}
                                                         tag="button"
                                                     >
                                                         3
@@ -1098,9 +1160,9 @@ const CreateCourse = () => {
                                                             },
                                                             "rounded-pill"
                                                         )}
-                                                        onClick={() => {
-                                                            toggleTab(4, 100);
-                                                        }}
+                                                        // onClick={() => {
+                                                        //     toggleTab(4, 100);
+                                                        // }}
                                                         tag="button"
                                                     >
                                                         4
@@ -1186,9 +1248,10 @@ const CreateCourse = () => {
                                                                             id="project-thumbnail-img"
                                                                             type="file"
                                                                             accept="image/png, image/gif, image/jpeg"
-                                                                            onChange={(e) =>
-                                                                                formik.setFieldValue("courseImage", e.currentTarget.files[0])
-                                                                            }
+                                                                            // onChange={(e) =>
+                                                                            //     formik.setFieldValue("courseImage", e.currentTarget.files[0])
+                                                                            // }
+                                                                            onChange={handleThumbnailUpload}
                                                                         />
                                                                     </div>
                                                                 </Col>
@@ -1758,7 +1821,7 @@ const CreateCourse = () => {
                                                                         <Row id="folderlist-data">
                                                                             {(contents || []).map((item, key) => (
                                                                                 <Col xxl={12} className="col-6 folder-card" key={key}>
-                                                                                    <Card className="bg-light shadow-none" id={"folder-" + item.id}>
+                                                                                    <Card className="bg-light shadow-none" id={"folder-" + item?.courseFolderId}>
                                                                                         <CardBody>
                                                                                             <div className="">
                                                                                                 <Row>
@@ -1767,7 +1830,7 @@ const CreateCourse = () => {
                                                                                                     </Col>
                                                                                                     <Col sm={10} >
                                                                                                         <div className="text-muted mt-2">
-                                                                                                            <h6 className="fs-15">{item.name}</h6>
+                                                                                                            <h6 className="fs-15">{item?.folderName}</h6>
 
                                                                                                             <span className="me-auto"><b>0</b> Files</span>
                                                                                                             {/* <span><b>{item.size}</b>GB</span> */}
@@ -1900,7 +1963,7 @@ const CreateCourse = () => {
                                 </CardBody>
                             </Card>
                         </Col>
-                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} />
+                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId}/>
                         <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} />
                         <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
                         <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
