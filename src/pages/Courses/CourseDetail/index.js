@@ -152,7 +152,7 @@ const CourseDetails = () => {
                                             <div>
                                                 <h5 className="fw-semibold mb-2">Price</h5>
                                                 <p className="text-muted mb-0">
-                                                    ₹ {courseDetails?.price || "0"}
+                                                    ₹ {courseDetails?.globalPrice || "0"}
                                                 </p>
                                             </div>
                                         </Col>
@@ -160,7 +160,7 @@ const CourseDetails = () => {
                                             <div>
                                                 <h5 className="fw-semibold mb-2">Discount</h5>
                                                 <p className="text-muted mb-0">
-                                                    ₹ {courseDetails?.discount || "0"}
+                                                    {courseDetails?.globalDiscount || "0"} %
                                                 </p>
                                             </div>
                                         </Col>
@@ -203,10 +203,13 @@ const CourseDetails = () => {
 
                                     {/* Course Duration Type */}
                                     <div className="mb-4">
-                                        <h5 className="fw-semibold mb-2">Course Duration Type</h5>
-                                        <p className="text-muted mb-0">
-                                            {courseDetails?.durationType || courseDetails?.courseDuration || "1 Year(s) Duration"}
-                                        </p>
+                                        <h5 className="fw-semibold mb-2">Course Duration</h5>
+
+                                        {courseDetails?.durations?.map((dur, index) => (
+                                            <p className="text-muted mb-0" key={index}>
+                                                {dur.durationValue} {dur.durationUnit}
+                                            </p>
+                                        ))}
                                     </div>
 
                                     {/* Students Enrolled */}
@@ -218,7 +221,7 @@ const CourseDetails = () => {
                                             </Link>
                                         </h5>
                                         <p className="text-muted mb-0">
-                                            {courseDetails?.studentsEnrolled || "0"}
+                                            {courseDetails?.studentEnrolledCount || "0"}
                                         </p>
                                     </div>
 
@@ -253,7 +256,7 @@ const CourseDetails = () => {
                                             </div>
                                             <div className="flex-grow-1 ms-3">
                                                 <h5 className="mb-1">Content</h5>
-                                                <p className="text-muted mb-0">4 Content</p>
+                                                <p className="text-muted mb-0">{courseDetails.contentCount || 0} Content</p>
                                             </div>
                                         </div>
                                     </div>
@@ -270,6 +273,22 @@ const CourseDetails = () => {
                                             </div>
                                             <div className="flex-grow-1 ms-3">
                                                 <h5 className="mb-0">Notice Board</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Live Chat */}
+                                    <div className="mb-3 pb-3 border-bottom">
+                                        <div className="d-flex align-items-center">
+                                            <div className="flex-shrink-0">
+                                                <div className="avatar-sm rounded">
+                                                    <div className="avatar-title bg-soft-info text-info rounded fs-20">
+                                                        <i className="ri-notification-3-line"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex-grow-1 ms-3">
+                                                <h5 className="mb-0">Live Chat</h5>
                                             </div>
                                         </div>
                                     </div>
