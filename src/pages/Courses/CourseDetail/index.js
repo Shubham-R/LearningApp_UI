@@ -10,7 +10,10 @@ import {
     Dropdown,
     DropdownToggle,
     DropdownMenu,
-    DropdownItem
+    DropdownItem,
+    Modal,
+    ModalHeader,
+    ModalBody
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import { getCourseDetailsAPI, getCourseDetailAPI } from "../../../api/course";
@@ -26,10 +29,12 @@ const CourseDetails = () => {
     const [courseDetails, setCourseDetails] = useState(null);    
     const [loading, setLoading] = useState(true);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [liveChatModalOpen, setLiveChatModalOpen] = useState(false);
 
     const toggleDropdown = () => setDropdownOpen(prevState => !prevState);
+    const toggleLiveChatModal = () => setLiveChatModalOpen(prevState => !prevState);
 
-    const isOwner = JSON.parse(sessionStorage.getItem("authUser")).data.userId === courseDetails?.userId;
+    const isOwner = JSON.parse(sessionStorage.getItem("authUser")).data.userId === courseDetails?.createdBy;
 
     useEffect(() => {
         fetchCourseDetails();
@@ -74,6 +79,21 @@ const CourseDetails = () => {
         console.log("Mark as featured");
     };
 
+    const handleScheduleLiveClass = () => {
+        window.open("https://zoom.us/j/123456789", "_blank");
+        toggleLiveChatModal();
+    };
+
+    const handleConnectZoom = () => {
+        window.open("https://zoom.us/j/123456789", "_blank");
+        toggleLiveChatModal();
+    };
+
+    const handleScheduleDemoClass = () => {
+        window.open("https://zoom.us/j/123456789", "_blank");
+        toggleLiveChatModal();
+    };
+
     if (loading) {
         return (
             <div className="page-content">
@@ -98,14 +118,6 @@ const CourseDetails = () => {
                         <Col lg={8}>
                             <Card>
                                 <CardBody>
-                                    {/* <div className="mb-4">
-                                        <button
-                                            type="button"
-                                            className="btn btn-success right ms-auto nexttab d-flex justify-content-end"
-                                            onClick={() => navigate("/create-course")}
-                                        > Edit</button>
-                                    </div> */}
-
                                     {/* Course Name and Image Side by Side */}
                                     <Row className="mb-4">
                                         {/* Left Side - Course Name */}
@@ -123,7 +135,7 @@ const CourseDetails = () => {
                                                     NEW
                                                 </span>
                                                 <img
-                                                    src={courseDetails?.courseImageUrl || "https://picsum.photos/400/300"}
+                                                    src={courseDetails?.courseImageUrl || "https://picsum.photos/200"}
                                                     alt={courseDetails?.courseName}
                                                     className="img-fluid rounded w-100"
                                                     style={{ maxHeight: "200px", objectFit: "cover" }}
@@ -205,11 +217,15 @@ const CourseDetails = () => {
                                     <div className="mb-4">
                                         <h5 className="fw-semibold mb-2">Course Duration</h5>
 
-                                        {courseDetails?.durations?.map((dur, index) => (
-                                            <p className="text-muted mb-0" key={index}>
-                                                {dur.durationValue} {dur.durationUnit}
-                                            </p>
-                                        ))}
+                                        {courseDetails?.durations?.length > 0 ? (
+                                            courseDetails.durations.map((dur, index) => (
+                                                <p className="text-muted mb-0" key={index}>
+                                                    {dur.durationValue} {dur.durationUnit}
+                                                </p>
+                                            ))
+                                        ) : (
+                                            <p className="text-muted mb-0">--</p>
+                                        )}
                                     </div>
 
                                     {/* Students Enrolled */}
@@ -245,70 +261,111 @@ const CourseDetails = () => {
                             <Card>
                                 <CardBody>
                                     {/* Content Section */}
-                                    <div className="mb-3 pb-3 border-bottom">
-                                        <div className="d-flex align-items-center">
-                                            <div className="flex-shrink-0">
-                                                <div className="avatar-sm rounded">
-                                                    <div className="avatar-title bg-soft-primary text-primary rounded fs-20">
-                                                        <i className="ri-file-list-3-line"></i>
+                                    <div className="mb-3 pb-3 border-bottom" style={{ cursor: 'pointer' }}>
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div className="d-flex align-items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div
+                                                        className="rounded d-flex align-items-center justify-content-center"
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '40px',
+                                                            backgroundColor: '#e3f2fd'
+                                                        }}
+                                                    >
+                                                        <i className="ri-folder-3-line fs-20" style={{ color: '#2196f3' }}></i>
                                                     </div>
                                                 </div>
+                                                <div className="flex-grow-1 ms-3">
+                                                    <h6 className="mb-0 fw-semibold">Content</h6>
+                                                    <p className="text-muted small mb-0">{courseDetails?.contentCount || 0} Content</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-grow-1 ms-3">
-                                                <h5 className="mb-1">Content</h5>
-                                                <p className="text-muted mb-0">{courseDetails.contentCount || 0} Content</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Live Classes */}
+                                    <div className="mb-3 pb-3 border-bottom" onClick={toggleLiveChatModal} style={{ cursor: 'pointer' }}>
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div className="d-flex align-items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div
+                                                        className="rounded d-flex align-items-center justify-content-center"
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '40px',
+                                                            backgroundColor: '#e3f2fd'
+                                                        }}
+                                                    >
+                                                        <i className="ri-video-line fs-20" style={{ color: '#2196f3' }}></i>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-grow-1 ms-3">
+                                                    <h6 className="mb-0 fw-semibold">Live Classes</h6>
+                                                    <p className="text-primary small mb-0">Go Live</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Notice Board */}
-                                    <div className="mb-3 pb-3 border-bottom">
-                                        <div className="d-flex align-items-center">
-                                            <div className="flex-shrink-0">
-                                                <div className="avatar-sm rounded">
-                                                    <div className="avatar-title bg-soft-info text-info rounded fs-20">
-                                                        <i className="ri-notification-3-line"></i>
+                                    <div className="mb-3 pb-3 border-bottom" style={{ cursor: 'pointer' }}>
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div className="d-flex align-items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div
+                                                        className="rounded d-flex align-items-center justify-content-center"
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '40px',
+                                                            backgroundColor: '#fff3e0'
+                                                        }}
+                                                    >
+                                                        <i className="ri-notification-3-line fs-20" style={{ color: '#ff9800' }}></i>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex-grow-1 ms-3">
-                                                <h5 className="mb-0">Notice Board</h5>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Live Chat */}
-                                    <div className="mb-3 pb-3 border-bottom">
-                                        <div className="d-flex align-items-center">
-                                            <div className="flex-shrink-0">
-                                                <div className="avatar-sm rounded">
-                                                    <div className="avatar-title bg-soft-info text-info rounded fs-20">
-                                                        <i className="ri-notification-3-line"></i>
-                                                    </div>
+                                                <div className="flex-grow-1 ms-3">
+                                                    <h6 className="mb-0 fw-semibold">Notice Board</h6>
+                                                    <p className="text-primary small mb-0">Create a Notice</p>
                                                 </div>
-                                            </div>
-                                            <div className="flex-grow-1 ms-3">
-                                                <h5 className="mb-0">Live Chat</h5>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Bundle */}
-                                    <div className="mb-3 pb-3 border-bottom">
-                                        <div className="d-flex align-items-center">
-                                            <div className="flex-shrink-0">
-                                                <div className="avatar-sm rounded">
-                                                    <div className="avatar-title bg-soft-success text-success rounded fs-20">
-                                                        <i className="ri-stack-line"></i>
+                                    <div className="mb-3 pb-3 border-bottom" style={{ cursor: 'pointer' }}>
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div className="d-flex align-items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div
+                                                        className="rounded d-flex align-items-center justify-content-center"
+                                                        style={{
+                                                            width: '40px',
+                                                            height: '40px',
+                                                            backgroundColor: '#e3f2fd'
+                                                        }}
+                                                    >
+                                                        <i className="ri-stack-line fs-20" style={{ color: '#2196f3' }}></i>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex-grow-1 ms-3">
-                                                <div className="d-flex align-items-center">
-                                                    <h5 className="mb-0 me-2">Bundle</h5>
-                                                    <span className="badge bg-danger">New</span>
+                                                <div className="flex-grow-1 ms-3">
+                                                    <div className="d-flex align-items-center">
+                                                        <h6 className="mb-0 fw-semibold me-2">Bundle</h6>
+                                                        <span
+                                                            className="badge"
+                                                            style={{
+                                                                backgroundColor: '#ffebee',
+                                                                color: '#d32f2f',
+                                                                fontSize: '10px',
+                                                                padding: '3px 8px',
+                                                                fontWeight: '500'
+                                                            }}
+                                                        >
+                                                            New
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-primary small mb-0">Create Bundle & Earn More</p>
                                                 </div>
-                                                <p className="text-muted small mb-0">Create Bundle & Earn More</p>
                                             </div>
                                         </div>
                                     </div>
@@ -316,43 +373,54 @@ const CourseDetails = () => {
                                     {/* More Options Dropdown Button */}
                                     <div className="mt-3">
                                         <Dropdown isOpen={dropdownOpen} toggle={toggleDropdown} className="w-100">
-                                            <DropdownToggle 
+                                            <DropdownToggle
                                                 tag="button"
                                                 className="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center"
-                                                style={{ border: '1px dashed #0ab39c' }}
+                                                style={{
+                                                    border: '1px dashed #2196f3',
+                                                    color: '#2196f3',
+                                                    backgroundColor: 'transparent',
+                                                    borderRadius: '8px',
+                                                    padding: '10px'
+                                                }}
                                             >
                                                 <i className="ri-more-fill me-2"></i> More Options
                                             </DropdownToggle>
-                                            <DropdownMenu className="w-100">
+                                            <DropdownMenu className="w-100" style={{ borderRadius: '8px' }}>
                                                 {/* Edit - Only visible to owner */}
                                                 {isOwner && (
-                                                    <DropdownItem onClick={handleEdit}>
+                                                    <DropdownItem onClick={handleEdit} className="py-2">
                                                         <i className="ri-edit-line me-2 text-muted"></i>
                                                         Edit
                                                     </DropdownItem>
                                                 )}
-                                                
+
                                                 {/* Delete - Only visible to owner */}
                                                 {isOwner && (
-                                                    <DropdownItem onClick={handleDelete}>
+                                                    <DropdownItem onClick={handleDelete} className="py-2">
                                                         <i className="ri-delete-bin-line me-2 text-muted"></i>
                                                         Delete
                                                     </DropdownItem>
                                                 )}
-                                                
-                                                <DropdownItem onClick={handleUnpublish}>
+
+                                                <DropdownItem onClick={handleUnpublish} className="py-2">
                                                     <i className="ri-close-circle-line me-2 text-muted"></i>
                                                     Unpublish
                                                 </DropdownItem>
-                                                
-                                                <DropdownItem onClick={handleShare}>
+
+                                                <DropdownItem onClick={handleShare} className="py-2">
                                                     <i className="ri-share-line me-2 text-muted"></i>
                                                     Share
                                                 </DropdownItem>
-                                                
-                                                <DropdownItem onClick={handleMarkAsFeatured}>
+
+                                                <DropdownItem onClick={handleMarkAsFeatured} className="py-2">
                                                     <i className="ri-star-line me-2 text-muted"></i>
                                                     Mark as Featured
+                                                </DropdownItem>
+
+                                                <DropdownItem className="py-2">
+                                                    <i className="ri-settings-3-line me-2 text-muted"></i>
+                                                    Advanced Settings
                                                 </DropdownItem>
                                             </DropdownMenu>
                                         </Dropdown>
@@ -363,6 +431,175 @@ const CourseDetails = () => {
                     </Row>
                 </Container>
             </div>
+
+            {/* Live Chat Modal - Slides from Right */}
+            <Modal 
+                isOpen={liveChatModalOpen} 
+                toggle={toggleLiveChatModal}
+                className="modal-dialog-right"
+                size="md"
+            >
+                <ModalHeader toggle={toggleLiveChatModal} className="border-0 pb-0">
+                    Live Class
+                </ModalHeader>
+                <ModalBody className="pt-3">
+                    {/* Live Class Online Card */}
+                    <div 
+                        className="card border rounded-3 mb-3 p-3"
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        onClick={handleScheduleLiveClass}
+                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                    >
+                        <div className="d-flex align-items-start">
+                            <div className="flex-shrink-0 me-3">
+                                <div className="position-relative">
+                                    <div 
+                                        className="rounded d-flex align-items-center justify-content-center"
+                                        style={{ width: '48px', height: '48px', backgroundColor: '#e3f2fd' }}
+                                    >
+                                        <i className="ri-video-line fs-22" style={{ color: '#2196f3' }}></i>
+                                    </div>
+                                    <span 
+                                        className="badge position-absolute"
+                                        style={{ 
+                                            bottom: '-5px', 
+                                            left: '0', 
+                                            backgroundColor: '#ff4444',
+                                            fontSize: '9px',
+                                            padding: '2px 6px'
+                                        }}
+                                    >
+                                        Live Class
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-grow-1">
+                                <h6 className="mb-1 fw-semibold">Live Class Online</h6>
+                                <p className="text-muted mb-2 small">
+                                    Schedule Live Class online in your course or batch.
+                                </p>
+                                <div className="text-primary small fw-medium">
+                                    Schedule Live Class <i className="ri-arrow-right-line ms-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Zoom Live Class Card */}
+                    <div 
+                        className="card border rounded-3 mb-3 p-3"
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        onClick={handleConnectZoom}
+                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                    >
+                        <div className="d-flex align-items-start">
+                            <div className="flex-shrink-0 me-3">
+                                <div className="position-relative">
+                                    <div 
+                                        className="rounded d-flex align-items-center justify-content-center"
+                                        style={{ width: '48px', height: '48px', backgroundColor: '#e3f2fd' }}
+                                    >
+                                        <i className="ri-vidicon-line fs-22" style={{ color: '#2196f3' }}></i>
+                                    </div>
+                                    <span 
+                                        className="badge position-absolute"
+                                        style={{ 
+                                            bottom: '-5px', 
+                                            left: '0', 
+                                            backgroundColor: '#2d8cff',
+                                            fontSize: '9px',
+                                            padding: '2px 6px'
+                                        }}
+                                    >
+                                        ZOOM
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-grow-1">
+                                <h6 className="mb-1 fw-semibold">Zoom Live Class</h6>
+                                <p className="text-muted mb-2 small">
+                                    Schedule Live Class online in your course or batch.
+                                </p>
+                                <div className="text-primary small fw-medium">
+                                    Connect Zoom Account <i className="ri-arrow-right-line ms-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Demo Live Class Card */}
+                    <div 
+                        className="card border rounded-3 mb-0 p-3"
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        onClick={handleScheduleDemoClass}
+                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                    >
+                        <div className="d-flex align-items-start">
+                            <div className="flex-shrink-0 me-3">
+                                <div className="position-relative">
+                                    <div 
+                                        className="rounded d-flex align-items-center justify-content-center"
+                                        style={{ width: '48px', height: '48px', backgroundColor: '#e3f2fd' }}
+                                    >
+                                        <i className="ri-video-add-line fs-22" style={{ color: '#2196f3' }}></i>
+                                    </div>
+                                    <span 
+                                        className="badge position-absolute"
+                                        style={{ 
+                                            bottom: '-5px', 
+                                            left: '0', 
+                                            backgroundColor: '#ffa726',
+                                            fontSize: '9px',
+                                            padding: '2px 6px'
+                                        }}
+                                    >
+                                        DEMO
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-grow-1">
+                                <h6 className="mb-1 fw-semibold">Demo Live Class</h6>
+                                <p className="text-muted mb-2 small">
+                                    Schedule Demo Class to promote this course to other students
+                                </p>
+                                <div className="text-primary small fw-medium">
+                                    Schedule Demo Live Class <i className="ri-arrow-right-line ms-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ModalBody>
+            </Modal>
+
+            <style jsx>{`
+                .modal-dialog-right {
+                    position: fixed;
+                    margin: 0;
+                    width: 100%;
+                    max-width: 400px;
+                    height: 100%;
+                    right: 0;
+                    top: 0;
+                }
+                
+                .modal-dialog-right .modal-content {
+                    height: 100%;
+                    border: 0;
+                    border-radius: 0;
+                }
+                
+                .modal.show .modal-dialog-right {
+                    transform: translateX(0);
+                }
+                
+                .modal-dialog-right {
+                    transform: translateX(100%);
+                    transition: transform 0.3s ease-out;
+                }
+            `}</style>
         </React.Fragment>
     );
 };
