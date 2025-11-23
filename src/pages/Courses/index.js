@@ -238,15 +238,19 @@ const Courses = () => {
                                             </h5>
 
                                             <div className="text-muted mb-1 d-flex justify-content-between">
-                                                <span>Price: ₹{course.globalPrice || 0}</span>
-                                                <span>Discount: {course.globalDiscount || 0}%</span>
+                                                <span>
+                                                    Price: <span style={{ textDecoration: "line-through" }}>
+                                                        ₹{course.globalPrice || 0}
+                                                    </span>
+                                                </span>
+
+                                                <span>
+                                                    Discount: {course.globalDiscount || 0}%
+                                                </span>
                                             </div>
 
                                             <p className="text-muted mb-1">
-                                                Effective Price:{" "}
-                                                <span style={{ textDecoration: "line-through" }}>
-                                                    ₹{course.globalEffectivePrice || 0}
-                                                </span>
+                                                Effective Price: ₹{course.globalEffectivePrice || 0}
                                             </p>
 
                                             <p className="text-muted mb-0">
