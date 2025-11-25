@@ -1964,7 +1964,7 @@ const CreateCourse = () => {
                             </Card>
                         </Col>
                         <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId}/>
-                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} />
+                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} courseId={courseData?.courseId}/>
                         <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
                         <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
 

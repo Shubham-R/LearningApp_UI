@@ -46,6 +46,7 @@ export const updatePriceAPI = async (payload, contentType) => {
 
 // ----------------------------------- Content APIs - Tab 3 ------------------------------------------------
 
+// A) FOLDER APIs
 // Create folder - Parent 
 export const createFolderAPI = async (payload, courseId, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-content/create-folder?courseId=${courseId}`, payload, contentType);
@@ -54,4 +55,15 @@ export const createFolderAPI = async (payload, courseId, contentType) => {
 // Get all folders by Course ID
 export const getAllFoldersByCourseIDAPI = async (courseId) => {
   return await getMethodCall(`${config.api.API_URL}/course-content/list-folders?courseId=${courseId}`);
+};
+
+// B) VIDEO APIs
+// Initiate video upload - Get presigned URLs
+export const initiateVideoUploadAPI = async (payload, courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/uploads-initiate?courseId=${courseId}`, payload, contentType);
+};
+
+// Complete video upload
+export const completeVideoUploadAPI = async (payload, courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/uploads-complete?courseId=${courseId}`, payload, contentType); 
 };
