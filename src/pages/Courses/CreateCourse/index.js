@@ -771,19 +771,19 @@ const CreateCourse = () => {
 
                     if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
                         setPriceData(updatePriceResponse?.data);
-                        // toggleTab(activeTab + 1, 67);
+                        toggleTab(activeTab + 1, 67);
                     }
                 } else {
                     const response = await createPricingAPI(payload);
                     console.log("createPricingAPI Response:", response);
                     if (response?.status === true && response?.data) {
                         setPriceData(response?.data);
-                        // toggleTab(activeTab + 1, 67);
+                        toggleTab(activeTab + 1, 67);
                     }
                 }
 
                 // Call API to fetch Content - Tab 3 listing
-                fetchFoldersByCourseId(courseData?.courseId || 80028, "proceedToContentTab");
+                // fetchFoldersByCourseId(courseData?.courseId || 80028, "proceedToContentTab");
 
             } catch (error) {
                 console.error("Error creating pricing:", error);
