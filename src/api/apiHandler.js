@@ -18,6 +18,24 @@ export const postMethodCall = async (url, data, orgId = '') => {
     return { status: false, apiResponse: err };
   }
 };
+export const postMultipartCall = async (url, data, orgId = '') => {
+  try {
+    let headers = {
+      "X-Tenant-ID": orgId
+    }
+
+    const apiResponse = await axios({
+      method: 'post',
+      url,
+      data,
+      headers
+    });
+
+    return { status: true, data: apiResponse };
+  } catch (err) {
+    return { status: false, error: err };
+  }
+};
 export const putMethodCall = async (url, data, contentType = 'application/json') => {
   try {
     const apiResponse = await axios({
@@ -48,7 +66,6 @@ export const patchMethodCall = async (url, data, contentType = 'application/json
     return { status: false, apiResponse: err };
   }
 };
-
 export const getMethodCall = async (url) => {
   try {
     const apiResponse = await axios({

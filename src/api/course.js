@@ -1,6 +1,6 @@
 import config from '../config';
 import { objectToQueryString } from '../helpers/common';
-import { getMethodCall, patchMethodCall, postMethodCall, putMethodCall } from './apiHandler';
+import { getMethodCall, patchMethodCall, postMethodCall, postMultipartCall, putMethodCall } from './apiHandler';
 
 // Get all courses
 export const getCourseListAPI = async (params) => {
@@ -27,6 +27,13 @@ export const updateDraftCourseAPI = async (payload, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-categories/update-course-categories`, payload, contentType);
 };
 
+// Upload course Image
+export const updateCourseImageAPI = async (payload) => {
+  return await postMultipartCall(`${config.api.API_URL}/course-categories/upload-image`, payload);
+};
+
+// ----------------------------------- Price APIs - Tab 2 -------------------------------------------------
+
 // Create Pricing
 export const createPricingAPI = async (payload, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-pricing-duration/create-pricing`, payload, contentType);
@@ -39,4 +46,27 @@ export const updatePriceAPI = async (payload, contentType) => {
 
 export const getCourseDetailAPI = async (params) => {
   return await getMethodCall(`${config.api.API_URL}/course-categories/course-details?courseId=${params.courseId}&courseStatus=${params.courseStatus}`);
+};
+// ----------------------------------- Content APIs - Tab 3 ------------------------------------------------
+
+// A) FOLDER APIs
+// Create folder - Parent 
+export const createFolderAPI = async (payload, courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/create-folder?courseId=${courseId}`, payload, contentType);
+};
+
+// Get all folders by Course ID
+export const getAllFoldersByCourseIDAPI = async (courseId) => {
+  return await getMethodCall(`${config.api.API_URL}/course-content/list-folders?courseId=${courseId}`);
+};
+
+// B) VIDEO APIs
+// Initiate video upload - Get presigned URLs
+export const initiateVideoUploadAPI = async (payload, courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/uploads-initiate?courseId=${courseId}`, payload, contentType);
+};
+
+// Complete video upload
+export const completeVideoUploadAPI = async (payload, courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/uploads-complete?courseId=${courseId}`, payload, contentType); 
 };

@@ -4,7 +4,7 @@ import { api } from "../config";
 // default
 axios.defaults.baseURL = api.API_URL;
 // content type
-axios.defaults.headers.post["Content-Type"] = "application/json";
+// axios.defaults.headers.post["Content-Type"] = "application/json";
 
 // content type
 const token = JSON.parse(sessionStorage.getItem("authUser")) ? JSON.parse(sessionStorage.getItem("authUser")).token : null;
