@@ -67,7 +67,6 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
                     const putRes = await axios.put(entry.presignedUrl, file, {
                         headers: {
                             "Content-Type": file.type,
-                            "x-amz-acl": "private"
                         }
                     });
 
