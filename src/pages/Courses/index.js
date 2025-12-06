@@ -21,7 +21,7 @@ import {
     DropdownMenu
 } from "reactstrap";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
-
+import noimage from "../../assets/images/noimage.png";
 import { getCourseListAPI } from "../../api/course";
 
 const ITEMS_PER_PAGE = 12;
@@ -337,7 +337,7 @@ const Courses = () => {
                                         <Card className="explore-box card-animate">
                                             <div className="explore-place-bid-img" style={{ position: 'relative' }}>
                                                 <img
-                                                    src={course.courseImageUrl || "https://picsum.photos/200"}
+                                                    src={course.courseImageUrl || noimage}
                                                     alt={course.courseName}
                                                     className="card-img-top explore-img"
                                                 />
