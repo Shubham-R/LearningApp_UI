@@ -22,6 +22,7 @@ import {
 import BreadCrumb from "../../Components/Common/BreadCrumb";
 
 import { getCourseListAPI } from "../../api/course";
+import noimage from "../../assets/images/noimage.png";
 
 const Courses = () => {
     document.title = "Courses | Classplus";
@@ -196,7 +197,7 @@ const Courses = () => {
                                     <Card className="explore-box card-animate">
                                         <div className="explore-place-bid-img" style={{ position: 'relative' }}>
                                             <img
-                                                src="https://picsum.photos/200"
+                                                src={course?.courseImageUrl ? course?.courseImageUrl : noimage}
                                                 alt={course.courseName}
                                                 className="card-img-top explore-img"
                                             />
