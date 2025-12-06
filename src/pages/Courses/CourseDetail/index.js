@@ -111,7 +111,7 @@ const CourseDetails = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title={courseDetails?.courseName || "Course Details"} pageTitle="Courses" />
+                    <BreadCrumb title={"Course Details"} pageTitle="Courses" />
                     
                     <Row>
                         {/* Left Column - Main Course Information */}
@@ -244,8 +244,15 @@ const CourseDetails = () => {
                                     {/* Navigation Button */}
                                     <div className="mt-4">
                                         <button
-                                            type="button"
-                                            className="btn btn-success btn-label right ms-auto nexttab nexttab"
+                                            tag="button"
+                                                className="btn btn-outline-primary w-20 d-flex align-items-center justify-content-center"
+                                                style={{
+                                                    border: '1px dashed #2196f3',
+                                                    color: '#2196f3',
+                                                    backgroundColor: 'transparent',
+                                                    borderRadius: '8px',
+                                                    padding: '10px'
+                                                }}
                                             onClick={() => navigate("/courses")}
                                         >
                                             <i className="ri-arrow-left-line me-1"></i>
@@ -403,10 +410,13 @@ const CourseDetails = () => {
                                                     </DropdownItem>
                                                 )}
 
-                                                <DropdownItem onClick={handleUnpublish} className="py-2">
-                                                    <i className="ri-close-circle-line me-2 text-muted"></i>
-                                                    Unpublish
-                                                </DropdownItem>
+                                                {/* Unpublish - Only visible to owner */}
+                                                {isOwner && (
+                                                    <DropdownItem onClick={handleUnpublish} className="py-2">
+                                                        <i className="ri-close-circle-line me-2 text-muted"></i>
+                                                        Unpublish
+                                                    </DropdownItem>
+                                                )}
 
                                                 <DropdownItem onClick={handleShare} className="py-2">
                                                     <i className="ri-share-line me-2 text-muted"></i>

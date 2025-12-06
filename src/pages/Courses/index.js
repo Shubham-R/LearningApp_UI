@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import moment from 'moment';
 import { Link } from "react-router-dom";
 import {
     Card,
@@ -20,17 +21,21 @@ import {
     DropdownMenu
 } from "reactstrap";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
-
-import { getCourseListAPI } from "../../api/course";
 import noimage from "../../assets/images/noimage.png";
+import { getCourseListAPI } from "../../api/course";
+
+const ITEMS_PER_PAGE = 12;
 
 const Courses = () => {
     document.title = "Courses | Classplus";
     const [courseList, setCourseList] = useState([]);
+    const [displayedCourses, setDisplayedCourses] = useState([]);
     const [allCourses, setAllCourses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [page, setPage] = useState(1);
     
     // Filter states
     const [selectedCategory, setSelectedCategory] = useState("");
@@ -40,7 +45,61 @@ const Courses = () => {
     const [priceRangeHigher, setPriceRangeHigher] = useState("");
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
+    const observer = useRef();
+    const loaderRef = useRef(null);
+
     const toggleFilterModal = () => setIsFilterOpen(!isFilterOpen);
+
+    //#region Setup Intersection Observer
+    useEffect(() => {
+        const options = {
+            root: null,
+            rootMargin: '20px',
+            threshold: 1.0
+        };
+
+        observer.current = new IntersectionObserver((entries) => {
+            const firstEntry = entries[0];
+            if (firstEntry.isIntersecting && !loadingMore && displayedCourses.length < courseList.length) {
+                loadMoreCourses();
+            }
+        }, options);
+
+        if (loaderRef.current) {
+            observer.current.observe(loaderRef.current);
+        }
+
+        return () => {
+            if (observer.current) {
+                observer.current.disconnect();
+            }
+        };
+    }, [displayedCourses, courseList, loadingMore]);
+
+    //#region Load More Courses
+    const loadMoreCourses = () => {
+        if (loadingMore || displayedCourses.length >= courseList.length) return;
+        
+        setLoadingMore(true);
+        
+        // Simulate network delay
+        setTimeout(() => {
+            const startIndex = displayedCourses.length;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const nextBatch = courseList.slice(startIndex, endIndex);
+            
+            setDisplayedCourses(prev => [...prev, ...nextBatch]);
+            setPage(prev => prev + 1);
+            setLoadingMore(false);
+        }, 300);
+    };
+
+    //#region Update Displayed Courses when courseList changes
+    useEffect(() => {
+        const initialCourses = courseList.slice(0, ITEMS_PER_PAGE);
+        setDisplayedCourses(initialCourses);
+        setPage(1);
+    }, [courseList]);
 
     //#region Fetch All Courses
     const fetchCourses = async () => {
@@ -91,6 +150,28 @@ const Courses = () => {
     };
     //#endregion
 
+    // Helper to format createdAt as relative time
+    const formatRelativeDate = (dateStr) => {
+        if (!dateStr) return '';
+        const m = moment(dateStr);
+        if (!m.isValid()) return '';
+
+        const now = moment();
+        const diffMinutes = now.diff(m, 'minutes');
+        const diffHours = now.diff(m, 'hours');
+        const diffDays = now.startOf('day').diff(m.startOf('day'), 'days');
+
+        if (diffMinutes < 1) return 'just now';
+        if (diffMinutes < 60) return `${diffMinutes} min ago`;
+        if (diffHours < 24 && diffDays === 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays === 0) return 'today';
+        if (diffDays === 1) return 'yesterday';
+        if (diffDays === 2) return 'day before yesterday';
+        if (diffDays <= 7) return `${diffDays} days ago`;
+
+        return m.format('MMM D, YYYY');
+    };
+
     //#region Filter Functions
     const handleCourseStatusChange = (status) => {
         if (courseStatus.includes(status)) {
@@ -105,8 +186,22 @@ const Courses = () => {
 
         // Apply course type filter
         if (courseType) {
-            // Add your course type filtering logic here
-            // filtered = filtered.filter(course => course.type === courseType);
+            let auth = null;
+            try {
+                auth = JSON.parse(sessionStorage.getItem('authUser'));
+            } catch (err) {
+                auth = null;
+            }
+            const userId = auth?.data?.userId;
+            const userOrgId = auth?.data?.userOrgId;
+
+            if (courseType === 'createdByMe') {
+                filtered = filtered.filter(course => String(course.createdBy) === String(userId));
+            } else if (courseType === 'createdByInstitute') {
+                filtered = filtered.filter(course => String(course.instituteId) === String(userOrgId));
+            } else if (courseType === 'imported') {
+                // no-op for now (imported courses filter not implemented)
+            }
         }
 
         // Apply course status filter
@@ -120,7 +215,7 @@ const Courses = () => {
         // Apply price range filter
         if (priceRangeLower || priceRangeHigher) {
             filtered = filtered.filter(course => {
-                const price = parseFloat(course.globalPrice) || 0;
+                const price = parseFloat(course.globalEffectivePrice) || 0;
                 const lower = priceRangeLower ? parseFloat(priceRangeLower) : 0;
                 const higher = priceRangeHigher ? parseFloat(priceRangeHigher) : Infinity;
                 return price >= lower && price <= higher;
@@ -139,7 +234,8 @@ const Courses = () => {
         setPriceRangeHigher("");
         setCourseList(allCourses);
     };
-    //#endregion
+
+    const hasMore = displayedCourses.length < courseList.length;
 
     return (
         <React.Fragment>
@@ -190,79 +286,7 @@ const Courses = () => {
                             <i className="mdi mdi-loading mdi-spin fs-24 text-primary"></i>
                             <p className="mt-2">Loading courses...</p>
                         </div>
-                    ) : courseList.length > 0 ? (
-                        <Row className="row-cols-xxl-4 row-cols-xl-3 row-cols-lg-2 row-cols-md-1" id="explorecard-list">
-                            {courseList.map((course) => (
-                                <Col key={course.courseId}>
-                                    <Card className="explore-box card-animate">
-                                        <div className="explore-place-bid-img" style={{ position: 'relative' }}>
-                                            <img
-                                                src={course?.courseImageUrl ? course?.courseImageUrl : noimage}
-                                                alt={course.courseName}
-                                                className="card-img-top explore-img"
-                                            />
-                                            <div className="bg-overlay"></div>
-                                            {(() => {
-                                                const status = (course.courseStatus || '').toUpperCase();
-                                                let badgeClass = 'badge bg-secondary';
-                                                let label = course.courseStatus || '';
-                                                if (status === 'PUBLISHED') {
-                                                    badgeClass = 'badge bg-success';
-                                                } else if (status === 'UNPUBLISHED') {
-                                                    badgeClass = 'badge bg-warning text-dark';
-                                                } else if (status === 'DRAFT') {
-                                                    badgeClass = 'badge bg-secondary';
-                                                }
-                                                return (
-                                                    <div className="position-absolute" style={{ top: 12, right: 12 }}>
-                                                        <span className={badgeClass} style={{ padding: '0.45rem 0.6rem', fontSize: '0.75rem' }}>
-                                                            {label}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                        <CardBody>
-                                            <h5 className="mb-1">
-                                                <Link
-                                                    to={`/course-details/${course.courseId}`}
-                                                    state={{
-                                                        courseName: course.courseName,
-                                                        courseStatus: course.courseStatus,
-                                                    }}
-                                                    title={course.courseName}  // show full name on hover
-                                                >
-                                                    {course.courseName.length > 20
-                                                        ? course.courseName.substring(0, 20) + "..."
-                                                        : course.courseName}
-                                                </Link>
-                                            </h5>
-
-                                            <div className="text-muted mb-1 d-flex justify-content-between">
-                                                <span>
-                                                    Price: <span style={{ textDecoration: "line-through" }}>
-                                                        ₹{course.globalPrice || 0}
-                                                    </span>
-                                                </span>
-
-                                                <span>
-                                                    Discount: {course.globalDiscount || 0}%
-                                                </span>
-                                            </div>
-
-                                            <p className="text-muted mb-1">
-                                                Effective Price: ₹{course.globalEffectivePrice || 0}
-                                            </p>
-
-                                            <p className="text-muted mb-0">
-                                                Created At: {new Date(course.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </CardBody>
-                                    </Card>
-                                </Col>
-                            ))}
-                        </Row>
-                    ) : (
+                    ) : courseList.length === 0 ? (
                         <div className="py-4 text-center" id="noresult">
                             <lord-icon
                                 src="https://cdn.lordicon.com/msoeawqm.json"
@@ -270,8 +294,99 @@ const Courses = () => {
                                 colors="primary:#405189,secondary:#0ab39c"
                                 style={{ width: "72px", height: "72px" }}
                             ></lord-icon>
-                            <h5 className="mt-4">Sorry! No Result Found</h5>
+                            <h5 className="mt-4">No Result Found</h5>
                         </div>
+                    ) : (
+                        <>
+                            <Row className="row-cols-xxl-4 row-cols-xl-3 row-cols-lg-2 row-cols-md-1" id="explorecard-list">
+                                {displayedCourses.map((course) => (
+                                    <Col key={course.courseId}>
+                                        <Card className="explore-box card-animate">
+                                            <div className="explore-place-bid-img" style={{ position: 'relative' }}>
+                                                <img
+                                                    src={course.courseImageUrl || noimage}
+                                                    alt={course.courseName}
+                                                    className="card-img-top explore-img"
+                                                />
+                                                <div className="bg-overlay"></div>
+                                                {(() => {
+                                                    const status = (course.courseStatus || '').toUpperCase();
+                                                    let badgeClass = 'badge bg-secondary';
+                                                    let label = course.courseStatus || '';
+                                                    if (status === 'PUBLISHED') {
+                                                        badgeClass = 'badge bg-success';
+                                                    } else if (status === 'UNPUBLISHED') {
+                                                        badgeClass = 'badge bg-warning text-dark';
+                                                    } else if (status === 'DRAFT') {
+                                                        badgeClass = 'badge bg-secondary';
+                                                    }
+                                                    return (
+                                                        <div className="position-absolute" style={{ top: 12, right: 12 }}>
+                                                            <span className={badgeClass} style={{ padding: '0.45rem 0.6rem', fontSize: '0.75rem' }}>
+                                                                {label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                            <CardBody>
+                                                <h5 className="mb-1">
+                                                    <Link
+                                                        to={`/course-details/${course.courseId}`}
+                                                        state={{
+                                                            courseName: course.courseName,
+                                                            courseStatus: course.courseStatus,
+                                                        }}
+                                                        title={course.courseName}
+                                                    >
+                                                        {course.courseName.length > 20
+                                                            ? course.courseName.substring(0, 20) + "..."
+                                                            : course.courseName}
+                                                    </Link>
+                                                </h5>
+
+                                                <div className="text-muted mb-1 d-flex justify-content-between">
+                                                    <span>
+                                                        Price: <span style={{ textDecoration: "line-through" }}>
+                                                            ₹{course.globalPrice || 0}
+                                                        </span>
+                                                    </span>
+
+                                                    <span>
+                                                        Effective: ₹{course.globalEffectivePrice || 0}
+                                                    </span>
+                                                </div>
+
+                                                <p className="text-muted mb-0">
+                                                    Created At: {formatRelativeDate(course.createdAt)}
+                                                </p>
+                                            </CardBody>
+                                        </Card>
+                                    </Col>
+                                ))}
+                            </Row>
+                            
+                            {/* Loader Element for Intersection Observer */}
+                            {hasMore && (
+                                <div ref={loaderRef} className="text-center py-4">
+                                    {loadingMore ? (
+                                        <>
+                                            <i className="mdi mdi-loading mdi-spin fs-24 text-primary"></i>
+                                            <p className="mt-2">Loading more courses...</p>
+                                        </>
+                                    ) : (
+                                        <div style={{ height: '20px' }}></div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* End of Results Message */}
+                            {!hasMore && displayedCourses.length > 0 && (
+                                <div className="text-center py-4">
+                                    <p className="text-muted">You've reached the end of the list ({displayedCourses.length} courses)</p>
+                                </div>
+                            )}
+                        </>
                     )}
                 </Container>
             </div>
