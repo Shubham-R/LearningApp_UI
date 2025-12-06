@@ -8,21 +8,23 @@ axios.defaults.baseURL = api.API_URL;
 
 // content type
 const token = JSON.parse(sessionStorage.getItem("authUser")) ? JSON.parse(sessionStorage.getItem("authUser")).token : null;
-if (token)
-  axios.defaults.headers.common["Authorization"] = "Bearer " + token;
+// if (token)
+// axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 
 // Request interceptor – set Tenant ID
 axios.interceptors.request.use(
   (config) => {
-    // if (config.url.includes("amazonaws.com")) {
-    //   // Remove unwanted headers
-    //   delete config.headers["Authorization"];
-    //   delete config.headers["X-Tenant-ID"];
-    //   delete config.headers.common?.["Authorization"];
-    //   delete config.headers.common?.["X-Tenant-ID"];
-    //   return config;
-    // }
-    // config.headers["Authorization"] = "Bearer " + token;
+    if (config.url.includes("amazonaws.com")) {
+      // Remove unwanted headers
+      delete config.headers["Authorization"];
+      delete config.headers["X-Tenant-ID"];
+      delete config.headers.common?.["Authorization"];
+      delete config.headers.common?.["X-Tenant-ID"];
+      return config;
+    }
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
     config.headers["X-Tenant-ID"] = "t1";
     return config;
   },
