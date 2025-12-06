@@ -54,6 +54,7 @@ import { AddDocument } from "./Modals/AddDocument";
 import { AddImage } from "./Modals/AddImage";
 import CreatableSelect from "react-select/creatable";
 import Swal from "sweetalert2";
+import VideoModal from "./Modals/VideoModal";
 
 const CreateCourse = () => {
     const [activeTab, setactiveTab] = useState(1);
@@ -1058,7 +1059,10 @@ const CreateCourse = () => {
     };
 
     const [currentFolder, setCurrentFolder] = useState(null); // null = root
-    const [breadcrumb, setBreadcrumb] = useState([]); // stores folders path
+    const [videoModalOpen, setVideoModalOpen] = useState(false);
+    const [selectedVideoUrl, setSelectedVideoUrl] = useState("");
+
+    const toggleVideoModal = () => setVideoModalOpen(!videoModalOpen);
 
     // Inside Parent Folder - OPEN FOLDER
     const openFolder = (folder) => {
@@ -1873,7 +1877,7 @@ const CreateCourse = () => {
                                                                 <div className="mx-n3 pt-4 px-4 overflow-x-hidden overflow-y-auto">
                                                                     <div id="folder-list" className="mb-2">
                                                                         <Row id="folderlist-data">
-                                                                            {currentFolder !== 0 ? (
+                                                                            {(currentFolder !== 0  && contents == []) ? (
                                                                                 <Col xxl={12} className="col-6 folder-card">
                                                                                     <div className="text-center py-5">
                                                                                         <lord-icon
@@ -1904,21 +1908,27 @@ const CreateCourse = () => {
                                                                                                     </Col>
 
                                                                                                     {/* NAME + FILE COUNT */}
-                                                                                                    <Col sm={10}>
-                                                                                                        <div className="text-muted mt-2">
+                                                                                                        <Col sm={10}>
+                                                                                                            <div className="text-muted mt-2">
 
-                                                                                                            <h6 className="fs-15">{item.name}</h6>
+                                                                                                                <h6 className="fs-15">{item.name}</h6>
 
-                                                                                                            {item.type === "folder" ? (
-                                                                                                                <span><b>{item.videoCount}</b> Files</span>
-                                                                                                            ) : (
-                                                                                                                <a href={item.url} target="_blank" rel="noreferrer">
-                                                                                                                    <span className="text-primary">Watch Video</span>
-                                                                                                                </a>
-                                                                                                            )}
-
-                                                                                                        </div>
-                                                                                                    </Col>
+                                                                                                                {item.type === "folder" ? (
+                                                                                                                    <span><b>{item.videoCount}</b> Files</span>
+                                                                                                                ) : (
+                                                                                                                    <span
+                                                                                                                        className="text-primary"
+                                                                                                                        style={{ cursor: "pointer" }}
+                                                                                                                        onClick={() => {
+                                                                                                                            setSelectedVideoUrl(item.url);
+                                                                                                                            setVideoModalOpen(true);
+                                                                                                                        }}
+                                                                                                                    >
+                                                                                                                        Watch Video
+                                                                                                                    </span>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        </Col>
 
                                                                                                     {/* MENU */}
                                                                                                         <Col sm={1}>
@@ -2082,6 +2092,7 @@ const CreateCourse = () => {
                         <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} courseId={courseData?.courseId} setContents={setContents} onAddFolderHandler={onAddFolderHandler} folderID = {currentFolder}/>
                         <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
                         <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
+                        <VideoModal isOpen={videoModalOpen} toggle={toggleVideoModal} videoUrl={selectedVideoUrl} />
 
                         {/* <Col lg={12}>
                             <Card>
