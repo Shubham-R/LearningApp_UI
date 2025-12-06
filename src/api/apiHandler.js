@@ -46,7 +46,7 @@ export const putMethodCall = async (url, data, contentType = 'application/json')
         'Content-Type': contentType
       }
     });
-    return { status: true, data: apiResponse.data.response };
+    return { status: true, data: apiResponse};
   } catch (err) {
     return { status: false, apiResponse: err };
   }
