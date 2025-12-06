@@ -127,8 +127,22 @@ const Courses = () => {
 
         // Apply course type filter
         if (courseType) {
-            // Add your course type filtering logic here
-            // filtered = filtered.filter(course => course.type === courseType);
+            let auth = null;
+            try {
+                auth = JSON.parse(sessionStorage.getItem('authUser'));
+            } catch (err) {
+                auth = null;
+            }
+            const userId = auth?.data?.userId;
+            const userOrgId = auth?.data?.userOrgId;
+
+            if (courseType === 'createdByMe') {
+                filtered = filtered.filter(course => String(course.createdBy) === String(userId));
+            } else if (courseType === 'createdByInstitute') {
+                filtered = filtered.filter(course => String(course.instituteId) === String(userOrgId));
+            } else if (courseType === 'imported') {
+                // no-op for now (imported courses filter not implemented)
+            }
         }
 
         // Apply course status filter
