@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import moment from 'moment';
 import { Link } from "react-router-dom";
 import {
     Card,
@@ -90,6 +91,28 @@ const Courses = () => {
     };
     //#endregion
 
+    // Helper to format createdAt as relative time
+    const formatRelativeDate = (dateStr) => {
+        if (!dateStr) return '';
+        const m = moment(dateStr);
+        if (!m.isValid()) return '';
+
+        const now = moment();
+        const diffMinutes = now.diff(m, 'minutes');
+        const diffHours = now.diff(m, 'hours');
+        const diffDays = now.startOf('day').diff(m.startOf('day'), 'days');
+
+        if (diffMinutes < 1) return 'just now';
+        if (diffMinutes < 60) return `${diffMinutes} min ago`;
+        if (diffHours < 24 && diffDays === 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays === 0) return 'today';
+        if (diffDays === 1) return 'yesterday';
+        if (diffDays === 2) return 'day before yesterday';
+        if (diffDays <= 7) return `${diffDays} days ago`;
+
+        return m.format('MMM D, YYYY');
+    };
+
     //#region Filter Functions
     const handleCourseStatusChange = (status) => {
         if (courseStatus.includes(status)) {
@@ -119,7 +142,7 @@ const Courses = () => {
         // Apply price range filter
         if (priceRangeLower || priceRangeHigher) {
             filtered = filtered.filter(course => {
-                const price = parseFloat(course.globalPrice) || 0;
+                const price = parseFloat(course.globalEffectivePrice) || 0;
                 const lower = priceRangeLower ? parseFloat(priceRangeLower) : 0;
                 const higher = priceRangeHigher ? parseFloat(priceRangeHigher) : Infinity;
                 return price >= lower && price <= higher;
@@ -245,16 +268,17 @@ const Courses = () => {
                                                 </span>
 
                                                 <span>
-                                                    Discount: {course.globalDiscount || 0}%
+                                                    {/* Discount: {course.globalDiscount || 0}% */}
+                                                    Effective Price: ₹{course.globalEffectivePrice || 0}
                                                 </span>
                                             </div>
 
-                                            <p className="text-muted mb-1">
+                                            {/* <p className="text-muted mb-1">
                                                 Effective Price: ₹{course.globalEffectivePrice || 0}
-                                            </p>
+                                            </p> */}
 
                                             <p className="text-muted mb-0">
-                                                Created At: {new Date(course.createdAt).toLocaleDateString()}
+                                                Created At: {formatRelativeDate(course.createdAt)}
                                             </p>
                                         </CardBody>
                                     </Card>

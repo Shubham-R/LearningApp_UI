@@ -403,10 +403,12 @@ const CourseDetails = () => {
                                                     </DropdownItem>
                                                 )}
 
-                                                <DropdownItem onClick={handleUnpublish} className="py-2">
-                                                    <i className="ri-close-circle-line me-2 text-muted"></i>
-                                                    Unpublish
-                                                </DropdownItem>
+                                                {isOwner && (
+                                                    <DropdownItem onClick={handleUnpublish} className="py-2">
+                                                        <i className="ri-close-circle-line me-2 text-muted"></i>
+                                                        Unpublish
+                                                    </DropdownItem>
+                                                )}
 
                                                 <DropdownItem onClick={handleShare} className="py-2">
                                                     <i className="ri-share-line me-2 text-muted"></i>
