@@ -47,10 +47,12 @@ const Courses = () => {
 
     const observer = useRef();
     const loaderRef = useRef(null);
+    const topSentinelRef = useRef(null);
+    const topObserver = useRef();
 
     const toggleFilterModal = () => setIsFilterOpen(!isFilterOpen);
 
-    //#region Setup Intersection Observer
+    //#region Setup Intersection Observer for Bottom (Load More)
     useEffect(() => {
         const options = {
             root: null,
@@ -75,6 +77,34 @@ const Courses = () => {
             }
         };
     }, [displayedCourses, courseList, loadingMore]);
+
+    //#region Setup Intersection Observer for Top (Reset on scroll to top)
+    useEffect(() => {
+        const options = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 1.0
+        };
+
+        topObserver.current = new IntersectionObserver((entries) => {
+            const firstEntry = entries[0];
+            // Reset to initial 12 courses when user scrolls back to top
+            if (firstEntry.isIntersecting && displayedCourses.length > ITEMS_PER_PAGE) {
+                setDisplayedCourses(courseList.slice(0, ITEMS_PER_PAGE));
+                setPage(1);
+            }
+        }, options);
+
+        if (topSentinelRef.current) {
+            topObserver.current.observe(topSentinelRef.current);
+        }
+
+        return () => {
+            if (topObserver.current) {
+                topObserver.current.disconnect();
+            }
+        };
+    }, [displayedCourses, courseList]);
 
     //#region Load More Courses
     const loadMoreCourses = () => {
@@ -298,6 +328,9 @@ const Courses = () => {
                         </div>
                     ) : (
                         <>
+                            {/* Top Sentinel - for detecting scroll to top */}
+                            <div ref={topSentinelRef} style={{ height: '1px', visibility: 'hidden' }}></div>
+                            
                             <Row className="row-cols-xxl-4 row-cols-xl-3 row-cols-lg-2 row-cols-md-1" id="explorecard-list">
                                 {displayedCourses.map((course) => (
                                     <Col key={course.courseId}>
