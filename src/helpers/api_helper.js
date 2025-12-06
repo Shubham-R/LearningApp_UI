@@ -9,7 +9,7 @@ axios.defaults.baseURL = api.API_URL;
 // content type
 const token = JSON.parse(sessionStorage.getItem("authUser")) ? JSON.parse(sessionStorage.getItem("authUser")).token : null;
 // if (token)
-  // axios.defaults.headers.common["Authorization"] = "Bearer " + token;
+// axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 
 // Request interceptor – set Tenant ID
 axios.interceptors.request.use(
@@ -22,7 +22,9 @@ axios.interceptors.request.use(
       delete config.headers.common?.["X-Tenant-ID"];
       return config;
     }
-    config.headers["Authorization"] = "Bearer " + token;
+    if (token) {
+      config.headers["Authorization"] = "Bearer " + token;
+    }
     config.headers["X-Tenant-ID"] = "t1";
     return config;
   },
