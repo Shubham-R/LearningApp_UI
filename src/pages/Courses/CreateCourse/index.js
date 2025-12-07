@@ -45,7 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
+import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
@@ -54,6 +54,7 @@ import { AddDocument } from "./Modals/AddDocument";
 import { AddImage } from "./Modals/AddImage";
 import CreatableSelect from "react-select/creatable";
 import Swal from "sweetalert2";
+import VideoModal from "./Modals/VideoModal";
 
 const CreateCourse = () => {
     const [activeTab, setactiveTab] = useState(1);
@@ -120,29 +121,15 @@ const CreateCourse = () => {
         setmodal_uploadImage(!modal_uploadImage);
     }
 
-    const onAddFolderHandler = (folder) => {
-        const newFolder = {
-            id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
-            name: folder?.data?.folderName,
-            type: "folder",
-            metadata: {
-                videoCount: 0,  
-                fileCount: 0    
-            }
-        };
-        // if(contents && Array.isArray(contents)){
-        //     setContents([...contents, newFolder]);
-        // }else{
-        //     setContents([newFolder]);
-        // }
-        fetchFoldersByCourseId(courseData?.courseId || 80028);
-    }      
-
-
-
-
-
-
+    // Calculate effective price whenever price or discount changes
+    useEffect(() => {
+        if (price && discount) {
+            const discounted = price - (price * (discount / 100));
+            setEffectivePrice(discounted.toFixed(2));
+        } else {
+            setEffectivePrice(price || "");
+        }
+    }, [price, discount]);
 
     const dispatch = useDispatch();
 
@@ -761,29 +748,25 @@ const CreateCourse = () => {
                     return;
                 }
 
-                console.log("createPricingAPI Payload:", payload);
-
                 if (priceData?.pricePlanId && priceData?.courseId) {
                     payload.courseId = priceData?.courseId;
                     payload.pricePlanId = priceData?.pricePlanId;
                     const updatePriceResponse = await updatePriceAPI(payload);
-                    console.log("updatePriceResponse Response:", updatePriceResponse);
-
                     if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
                         setPriceData(updatePriceResponse?.data);
-                        toggleTab(activeTab + 1, 67);
+                        // toggleTab(activeTab + 1, 67);
                     }
                 } else {
                     const response = await createPricingAPI(payload);
-                    console.log("createPricingAPI Response:", response);
                     if (response?.status === true && response?.data) {
                         setPriceData(response?.data);
-                        toggleTab(activeTab + 1, 67);
+                        // toggleTab(activeTab + 1, 67);
                     }
                 }
 
                 // Call API to fetch Content - Tab 3 listing
-                // fetchFoldersByCourseId(courseData?.courseId || 80028, "proceedToContentTab");
+                await refreshContents(courseData?.courseId);
+                toggleTab(activeTab + 1, 67);   // Now move to Content tab AFTER setting state
 
             } catch (error) {
                 console.error("Error creating pricing:", error);
@@ -863,6 +846,23 @@ const CreateCourse = () => {
         fetchCategories();
     }, []);
 
+    // Calculate effective price in Formik whenever price or discountPercent changes
+    useEffect(() => {
+        const price = Number(coursePricingValidation.values.price);
+        const discount = Number(coursePricingValidation.values.discountPercent);
+
+        if (!isNaN(price) && !isNaN(discount)) {
+            const effective = price - (price * (discount / 100));
+            coursePricingValidation.setFieldValue(
+                "effectivePrice",
+                effective.toFixed(2)
+            );
+        }
+    }, [
+        coursePricingValidation.values.price,
+        coursePricingValidation.values.discountPercent
+    ]);
+
     // Validation Schema
     const validationSchema = Yup.object().shape({
         courseName: Yup.string().required("Course name is required"),
@@ -908,7 +908,6 @@ const CreateCourse = () => {
                     courseImageId: values.courseImageId,
                     categoryMappings: categoryMappingsPayload,
                 };
-                console.log("payload--",payload);
 
                 // If courseId exists, update draft course
                 if (courseData?.courseId) {
@@ -936,17 +935,11 @@ const CreateCourse = () => {
     const handleThumbnailUpload = async (e) => {
         const file = e.currentTarget.files[0];
         if (!file) return;
-
-        console.log("file--", file);
-
         const formData = new FormData();
         formData.append("file", file);
 
         try {
             const response = await updateCourseImageAPI(formData);
-
-            console.log("Upload Response:", response);
-
             if (response?.status) {
                 formik.setFieldValue("courseImageId", response?.data?.imageId || null);
 
@@ -1031,20 +1024,66 @@ const CreateCourse = () => {
         value: course.courseId,
     }));
 
-    // Fetch All folders by course ID
-    const fetchFoldersByCourseId = async (courseId, type) => {
+    const onAddFolderHandler = (response) => {
+        refreshContents(courseData?.courseId, currentFolder);
+    };
+
+    // Fetch Course content by course ID
+    const refreshContents = async (courseId, folderID = 0) => {
         try {
-            const response = await getAllFoldersByCourseIDAPI(courseId);
-            console.log("fetch folder list--", response);
-            if(response?.status === true) {
-                if(type) toggleTab(activeTab + 1, 67); // Move to Add Content tab
-                setContents(response?.data || []);
+            const res = await getConetntDataByCourseIDAPI(courseId, folderID);            
+            if (!res) return;
+            if(res.status) {
+                const folderList = (res.data.courseContentFolderDetails || []).map(f => ({
+                    id: f.folderId,
+                    name: f.folderName,
+                    type: "folder",
+                    videoCount: f.total || 0,
+                    url: null
+                }));
+    
+                const videoList = (res.data.courseContentPresignedDetails || []).map(v => ({
+                    id: v.courseContentId,
+                    name: `Video ${v.courseContentId}`,
+                    type: "video",
+                    url: v.presignedGetUrl
+                }));
+    
+                const finalData = [...folderList, ...videoList];
+                setContents(finalData);                
             }
 
-        } catch (error) {
-            console.error("Error fetching folders by course ID:", error);
+        } catch (err) {
+            console.error("Error refreshing contents:", err);
         }
-    }
+    };
+
+    const [currentFolder, setCurrentFolder] = useState(null); // null = root
+    const [videoModalOpen, setVideoModalOpen] = useState(false);
+    const [selectedVideoUrl, setSelectedVideoUrl] = useState("");
+
+    const toggleVideoModal = () => setVideoModalOpen(!videoModalOpen);
+
+    // Inside Parent Folder - OPEN FOLDER
+    const openFolder = (folder) => {
+        // SET CURRENT FOLDER ID
+        setCurrentFolder(folder.id);
+
+        // CLEAR UI WHILE FETCHING
+        setContents([]);
+
+        // CALL API TO GET CHILD CONTENT
+        refreshContents(courseData?.courseId, folder.id);
+    };
+
+
+    // GO BACK TO PARENT
+    const goBackTo = () => {
+        const folderId = 0;
+        setCurrentFolder(folderId);
+        refreshContents(courseData?.courseId, folderId); // load parent contents - folder id = 0 (parent folder)
+    };
+
          
     document.title = "Create Course | Classplus";
 
@@ -1222,15 +1261,18 @@ const CreateCourse = () => {
                                                                 <Col lg={12}>
                                                                     <div className="mb-3">
                                                                         <Label className="form-label">Description</Label>
-                                                                        <CKEditor
-                                                                            editor={ClassicEditor}
-                                                                            data={editorData}
-                                                                            onChange={(event, editor) => {
-                                                                                const data = editor.getData();
-                                                                                setEditorData(data);
-                                                                                formik.setFieldValue("courseDescription", data);
+
+                                                                        <textarea
+                                                                            className="form-control"
+                                                                            rows="6"
+                                                                            value={formik.values.courseDescription}
+                                                                            onChange={(e) => {
+                                                                                formik.setFieldValue("courseDescription", e.target.value);
                                                                             }}
+                                                                            onBlur={formik.handleBlur}
+                                                                            name="courseDescription"
                                                                         />
+
                                                                         {formik.touched.courseDescription && formik.errors.courseDescription && (
                                                                             <div className="text-danger">{formik.errors.courseDescription}</div>
                                                                         )}
@@ -1533,7 +1575,8 @@ const CreateCourse = () => {
                                                                                                         id="course-effective-price-input"
                                                                                                         placeholder="Enter effective price"
                                                                                                         value={effectivePrice}
-                                                                                                        onChange={(e) => setEffectivePrice(e.target.value)}
+                                                                                                        // onChange={(e) => setEffectivePrice(e.target.value)}
+                                                                                                        readOnly
                                                                                                     />
                                                                                                 </div>
                                                                                             </div>
@@ -1735,7 +1778,8 @@ const CreateCourse = () => {
                                                                                                     aria-label="Effective Price"
                                                                                                     aria-describedby="course-effictive-price-addon"
                                                                                                     value={coursePricingValidation.values.effectivePrice}
-                                                                                                    onChange={coursePricingValidation.handleChange}
+                                                                                                    // onChange={coursePricingValidation.handleChange}
+                                                                                                    readOnly
                                                                                                 />
                                                                                                 {/* {validation.errors.price && validation.touched.price ? (
                                                                                                         <FormFeedback type="invalid">{validation.errors.price}</FormFeedback>
@@ -1813,63 +1857,144 @@ const CreateCourse = () => {
 
                                             <TabPane tabId={3}>
                                                 <div>
+                                                    {/* Back to perent*/}
+                                                    {currentFolder !== 0  && (
+                                                        <div className="mb-3">
+                                                            <h6 className="fw-bold">
+                                                                <span
+                                                                    style={{ cursor: "pointer" }}
+                                                                    onClick={() => goBackTo()}
+                                                                >
+                                                                {"<- Back"}
+                                                                </span>
+                                                            </h6>
+                                                        </div>
+                                                    )}
+
                                                     <Row>
                                                         <Col lg={9}>
                                                             <div className="file-manager-content w-100 p-3 py-0">
                                                                 <div className="mx-n3 pt-4 px-4 overflow-x-hidden overflow-y-auto">
                                                                     <div id="folder-list" className="mb-2">
                                                                         <Row id="folderlist-data">
-                                                                            {(contents || []).map((item, key) => (
-                                                                                <Col xxl={12} className="col-6 folder-card" key={key}>
-                                                                                    <Card className="bg-light shadow-none" id={"folder-" + item?.courseFolderId}>
-                                                                                        <CardBody>
-                                                                                            <div className="">
-                                                                                                <Row>
-                                                                                                    <Col sm={1} >
-                                                                                                        <i className="ri-folder-2-fill text-warning display-5"></i>
-                                                                                                    </Col>
-                                                                                                    <Col sm={10} >
-                                                                                                        <div className="text-muted mt-2">
-                                                                                                            <h6 className="fs-15">{item?.folderName}</h6>
-
-                                                                                                            <span className="me-auto"><b>0</b> Files</span>
-                                                                                                            {/* <span><b>{item.size}</b>GB</span> */}
-                                                                                                        </div>
-                                                                                                    </Col>
-                                                                                                    <Col sm={1} >
-                                                                                                        <UncontrolledDropdown className="float-end">
-                                                                                                            <DropdownToggle tag="button" className="btn btn-ghost-primary btn-icon btn-sm dropdown">
-                                                                                                                <i className="ri-more-2-fill fs-16 align-bottom" />
-                                                                                                            </DropdownToggle>
-                                                                                                            <DropdownMenu className="dropdown-menu-end">
-                                                                                                                <DropdownItem className="view-item-btn">Edit</DropdownItem>
-                                                                                                                <DropdownItem className="edit-folder-list" >Remove</DropdownItem>
-                                                                                                                <DropdownItem >Locked</DropdownItem>
-                                                                                                            </DropdownMenu>
-                                                                                                        </UncontrolledDropdown>
-                                                                                                    </Col>
-                                                                                                </Row>
-                                                                                            </div>
-
-                                                                                            {/* </div> */}
-                                                                                            {/* <div className="hstack mt-4 text-muted">
-                                                                                                <span className="me-auto"><b>{item.folderFile}</b> Files</span>
-                                                                                                <span><b>{item.size}</b>GB</span>
-                                                                                            </div> */}
-                                                                                        </CardBody>
-                                                                                    </Card>
-                                                                                </Col>))}
-                                                                            {contents && contents.length === 0 && (
-                                                                                <Col xxl={12} className="col-6 folder-card" >
+                                                                            {(currentFolder !== 0  && contents == []) ? (
+                                                                                <Col xxl={12} className="col-6 folder-card">
                                                                                     <div className="text-center py-5">
                                                                                         <lord-icon
                                                                                             src="https://cdn.lordicon.com/msoeawqm.json"
                                                                                             trigger="loop"
                                                                                         />
-                                                                                        <h5 className="mt-3">No Content Found.</h5>
+                                                                                        <h5 className="mt-3">No Child Content Found.</h5>
                                                                                     </div>
                                                                                 </Col>
+                                                                            ) : (
+                                                                            <>
+                                                                                {(contents || []).map((item, key) => (
+                                                                                    console.log("item--",item),
+                                                                                    
+                                                                                    <Col xxl={12} className="col-6 folder-card" key={key}>
+
+                                                                                        <Card className="bg-light shadow-none">
+
+                                                                                            <CardBody>
+                                                                                                <Row>
+
+                                                                                                    {/* ICON */}
+                                                                                                    <Col sm={1}>
+                                                                                                        {item.type === "folder"
+                                                                                                            ? <i className="ri-folder-2-fill text-warning display-5"></i>
+                                                                                                            : <i className="ri-video-fill text-danger display-5"></i>
+                                                                                                        }
+                                                                                                    </Col>
+
+                                                                                                    {/* NAME + FILE COUNT */}
+                                                                                                        <Col sm={10}>
+                                                                                                            <div className="text-muted mt-2">
+
+                                                                                                                <h6 className="fs-15">{item.name}</h6>
+
+                                                                                                                {item.type === "folder" ? (
+                                                                                                                    <span><b>{item.videoCount}</b> Files</span>
+                                                                                                                ) : (
+                                                                                                                    <span
+                                                                                                                        className="text-primary"
+                                                                                                                        style={{ cursor: "pointer" }}
+                                                                                                                        onClick={() => {
+                                                                                                                            setSelectedVideoUrl(item.url);
+                                                                                                                            setVideoModalOpen(true);
+                                                                                                                        }}
+                                                                                                                    >
+                                                                                                                        Watch Video
+                                                                                                                    </span>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        </Col>
+
+                                                                                                    {/* MENU */}
+                                                                                                        <Col sm={1}>
+                                                                                                            <UncontrolledDropdown className="float-end">
+                                                                                                                <DropdownToggle
+                                                                                                                    tag="button"
+                                                                                                                    type="button"
+                                                                                                                    className="btn btn-ghost-primary btn-icon btn-sm dropdown"
+                                                                                                                >
+                                                                                                                    <i className="ri-more-2-fill fs-16 align-bottom" />
+                                                                                                                </DropdownToggle>
+
+                                                                                                                <DropdownMenu className="dropdown-menu-end">
+                                                                                                                    <DropdownItem
+                                                                                                                        onClick={(e) => {
+                                                                                                                            e.preventDefault();
+                                                                                                                            openFolder(item);
+                                                                                                                        }}
+                                                                                                                    >
+                                                                                                                        Open
+                                                                                                                    </DropdownItem>
+
+                                                                                                                    <DropdownItem
+                                                                                                                        onClick={(e) => {
+                                                                                                                            e.preventDefault();
+                                                                                                                            alert("Edit folder feature coming soon!");
+                                                                                                                        }}
+                                                                                                                    >
+                                                                                                                        Edit
+                                                                                                                    </DropdownItem>
+
+                                                                                                                    <DropdownItem
+                                                                                                                        onClick={(e) => {
+                                                                                                                            e.preventDefault();
+                                                                                                                            alert("Remove folder feature coming soon!");
+                                                                                                                        }}
+                                                                                                                    >
+                                                                                                                        Remove
+                                                                                                                    </DropdownItem>
+
+                                                                                                                    <DropdownItem disabled>Locked</DropdownItem>
+                                                                                                                </DropdownMenu>
+                                                                                                            </UncontrolledDropdown>
+                                                                                                        </Col>
+
+                                                                                                </Row>
+                                                                                            </CardBody>
+                                                                                        </Card>
+
+                                                                                    </Col>
+                                                                                ))}
+
+                                                                                {contents && contents.length === 0 && (
+                                                                                    <Col xxl={12} className="col-6 folder-card" >
+                                                                                        <div className="text-center py-5">
+                                                                                            <lord-icon
+                                                                                                src="https://cdn.lordicon.com/msoeawqm.json"
+                                                                                                trigger="loop"
+                                                                                            />
+                                                                                            <h5 className="mt-3">No Content Found.</h5>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                )}
+                                                                            </>
                                                                             )}
+
                                                                         </Row>
                                                                     </div>
                                                                 </div>
@@ -1963,10 +2088,11 @@ const CreateCourse = () => {
                                 </CardBody>
                             </Card>
                         </Col>
-                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId}/>
-                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} courseId={courseData?.courseId}/>
+                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId} folderID = {currentFolder}/>
+                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} courseId={courseData?.courseId} setContents={setContents} onAddFolderHandler={onAddFolderHandler} folderID = {currentFolder}/>
                         <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
                         <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
+                        <VideoModal isOpen={videoModalOpen} toggle={toggleVideoModal} videoUrl={selectedVideoUrl} />
 
                         {/* <Col lg={12}>
                             <Card>

@@ -3,8 +3,10 @@ import { Button, Form, FormGroup, Input, Label, Modal, ModalBody, ModalHeader } 
 import { createFolderAPI } from "../../../../api/course";
 import Swal from "sweetalert2";
 
-export const AddFolder = ({ isOpen, toggle, onAddFolderHandler, courseId }) => {
-    courseId = courseId ? courseId : 80028 // for testing
+export const AddFolder = ({ isOpen, toggle, onAddFolderHandler, courseId, folderID }) => {
+    console.log("folderID add folder=",folderID);
+    
+    courseId = courseId ? courseId : 80046 // for testing
     const [folderName, setFolderName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -22,10 +24,12 @@ export const AddFolder = ({ isOpen, toggle, onAddFolderHandler, courseId }) => {
         try {
             setLoading(true);
 
-            const payload = { folderName };
+            const payload = {
+                folderName,
+                parentFolderId: folderID || null
+            };
 
             const response = await createFolderAPI(payload, courseId, "application/json");
-            console.log("folder response--", response);
             if (response?.status === true) {
                 onAddFolderHandler(response);
                 // SUCCESS ALERT

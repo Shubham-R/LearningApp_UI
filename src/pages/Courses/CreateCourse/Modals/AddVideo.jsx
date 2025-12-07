@@ -3,30 +3,39 @@ import axios from "axios";
 import { Button, Card, Modal, ModalHeader, ModalBody } from "reactstrap";
 import FeatherIcon from "feather-icons-react";
 import { completeVideoUploadAPI, initiateVideoUploadAPI } from "../../../../api/course";
+import Swal from "sweetalert2";
 
-export const AddVideo = ({ isOpen, toggle, courseId }) => {
+export const AddVideo = ({ isOpen, toggle, courseId, setContents, onAddFolderHandler, folderID }) => {
+    console.log("folder id add video--", folderID);
+    
     courseId = courseId ? courseId : 80028; // for testing
     const [selectedFiles, setSelectedFiles] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     // STEP 1 — choose file(s)
     const handleFileChange = (e) => {
+        setSelectedFiles([]);
         if (e.target.files) {
             const filesArray = Array.from(e.target.files);
             setSelectedFiles(filesArray);
-
-            console.log("Selected files:", filesArray.map(f => f.name));
         }
     };
 
     // STEP 2 — on upload click
     const handleUpload = async () => {
-        if (!selectedFiles || selectedFiles.length === 0) {
-            alert("Select at least one video");
+        if (!selectedFiles.length) {
+            Swal.fire({
+                icon: "error",
+                title: "Warning",
+                text: "Select at least one video"
+            });
             return;
         }
 
-        const payload = {
-            isExternal: true,
+        setIsUploading(true); // START LOADER
+
+        let payload = {
+            isExternal: folderID ? false: true,
             mimeType: "video/mp4",
             fileList: selectedFiles.map((file) => ({
                 isLocked: false,
@@ -36,32 +45,38 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
             }))
         };
 
+        if(folderID != 0) {
+            payload.folderId = folderID;
+        }
+
         try {
-            // STEP 3 — Initiate upload (get presigned URL)
+            // STEP 3 — Initiate upload
             const initiateRes = await initiateVideoUploadAPI(payload, courseId, "application/json");
-            console.log("initiate response -", initiateRes);
 
             if (!initiateRes?.status) {
-                alert("Failed to initiate upload");
+                Swal.fire({ icon: "error", title: "Failed", text: "Failed to initiate upload" });
+                setIsUploading(false);
                 return;
             }
 
             const uploadEntries = initiateRes.data;
-            console.log("Presigned entries -", uploadEntries);
 
-            if (!uploadEntries || uploadEntries.length === 0) {
-                alert("No presigned URLs received!");
+            if (!uploadEntries?.length) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: "No presigned URLs received!"
+                });
+                setIsUploading(false);
                 return;
             }
 
             const uploadResults = [];
 
-            // STEP 4 — Upload each file to AWS using presigned URL
+            // STEP 4 — Upload each file
             for (let i = 0; i < uploadEntries.length; i++) {
                 const file = selectedFiles[i];
                 const entry = uploadEntries[i];
-
-                console.log(`Uploading to S3 - ${file.name}`);
 
                 try {
                     const putRes = await axios.put(entry.presignedUrl, file, {
@@ -70,39 +85,66 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
                         }
                     });
 
-                    console.log("PUT Response -", putRes);
-
-                    const eTag =
-                        putRes.headers?.etag?.replace(/"/g, "") || "no-etag-returned";
+                    const eTag = putRes.headers?.etag?.replace(/"/g, "") || "no-etag-returned";
 
                     uploadResults.push({
                         uploadId: entry.uploadId,
                         eTag: eTag,
-                        checksumSha256: "" 
+                        checksumSha256: ""
                     });
 
                 } catch (uploadErr) {
-                    console.error(`File upload failed for: ${file.name}`, uploadErr);
-                    alert(`Upload failed for ${file.name}`);
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: `Upload failed for ${file.name}`
+                    });
+                    setIsUploading(false);
                     return;
                 }
             }
 
-            console.log("Upload Results -", uploadResults);
-
-            // STEP 5 — Inform backend upload is complete
+            // STEP 5 — Notify backend upload is complete
             const completeRes = await completeVideoUploadAPI(uploadResults, courseId, "application/json");
 
-            console.log("Complete upload response -", completeRes);
+            if (completeRes?.status) {
+                const addedVideos = (completeRes.data || []).map(v => ({
+                    id: v.courseContentId,
+                    name: v.fileName || "Uploaded Video",
+                    type: "video",
+                    url: v.presignedGetUrl
+                }));
 
-            alert("All videos uploaded successfully!");
+                await setContents(prev => [...prev, ...addedVideos]);
 
-            toggle(); // close modal
+                Swal.fire({
+                    icon: "success",
+                    title: "Uploaded Successfully",
+                    timer: 1200,
+                    showConfirmButton: false
+                });
+
+                onAddFolderHandler(completeRes);
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "Upload Failed",
+                    text: "Something went wrong."
+                });
+            }
+
+            toggle();
 
         } catch (err) {
             console.error("Upload error -", err);
-            alert("Upload Failed!");
+            Swal.fire({
+                icon: "error",
+                title: "Upload Failed",
+                text: "Something went wrong."
+            });
         }
+
+        setIsUploading(false); // STOP LOADER (always)
     };
 
     return (
@@ -110,7 +152,25 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
             <ModalHeader toggle={toggle}></ModalHeader>
 
             <ModalBody>
+                {/* FULL SCREEN LOADER */}
+                {/* {isUploading && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: "rgba(255, 255, 255, 0.8)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 9999
+                        }}
+                    >
+                        <div className="spinner-border" style={{ width: "3rem", height: "3rem" }}></div>
+                    </div>
+                )} */}
+
                 <div className="align-items-center d-flex flex-column">
+
                     <div className="avatar-sm flex-shrink-0">
                         <span className="avatar-title bg-info-subtle rounded-circle fs-2">
                             <FeatherIcon icon="video" className="text-info" />
@@ -119,15 +179,14 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
 
                     <div className="mt-4 align-items-center d-flex flex-column">
                         <h5>Upload Video(s)</h5>
-                        <p className="text-muted mb-0">
-                            Select videos (max 5GB each)
-                        </p>
+                        <p className="text-muted mb-0">Select videos (max 5GB each)</p>
                     </div>
 
                     <Button
                         color="secondary"
                         className="rounded-pill mt-3"
-                        onClick={() => document.getElementById('video-upload')?.click()}
+                        onClick={() => document.getElementById('video-upload').click()}
+                        disabled={isUploading}
                     >
                         Select File(s)
                     </Button>
@@ -153,10 +212,17 @@ export const AddVideo = ({ isOpen, toggle, courseId }) => {
                     <Button
                         color="primary"
                         className="rounded-pill mt-3"
-                        disabled={selectedFiles.length === 0}
+                        disabled={selectedFiles.length === 0 || isUploading}
                         onClick={handleUpload}
                     >
-                        Upload Videos
+                        {isUploading ? (
+                            <>
+                                <span className="spinner-border spinner-border-sm me-2"></span>
+                                Uploading...
+                            </>
+                        ) : (
+                            "Upload Videos"
+                        )}
                     </Button>
 
                     <Card className="mt-4 w-100">
