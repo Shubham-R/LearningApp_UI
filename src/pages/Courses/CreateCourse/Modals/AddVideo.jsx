@@ -1,174 +1,20 @@
-import { useState } from "react";
-import axios from "axios";
 import { Button, Card, Modal, ModalHeader, ModalBody } from "reactstrap";
 import FeatherIcon from "feather-icons-react";
-import { completeVideoUploadAPI, initiateVideoUploadAPI } from "../../../../api/course";
-import Swal from "sweetalert2";
 
-export const AddVideo = ({ isOpen, toggle, courseId, setContents, onAddFolderHandler, folderID }) => {
-    console.log("folder id add video--", folderID);
-    
-    courseId = courseId ? courseId : 80028; // for testing
-    const [selectedFiles, setSelectedFiles] = useState([]);
-    const [isUploading, setIsUploading] = useState(false);
-
-    // STEP 1 — choose file(s)
-    const handleFileChange = (e) => {
-        setSelectedFiles([]);
-        if (e.target.files) {
-            const filesArray = Array.from(e.target.files);
-            setSelectedFiles(filesArray);
-        }
-    };
-
-    // STEP 2 — on upload click
-    const handleUpload = async () => {
-        if (!selectedFiles.length) {
-            Swal.fire({
-                icon: "error",
-                title: "Warning",
-                text: "Select at least one video"
-            });
-            return;
-        }
-
-        setIsUploading(true); // START LOADER
-
-        let payload = {
-            isExternal: folderID ? false: true,
-            mimeType: "video/mp4",
-            fileList: selectedFiles.map((file) => ({
-                isLocked: false,
-                fileName: file.name,
-                size: file.size,
-                multipart: false
-            }))
-        };
-
-        if(folderID != 0) {
-            payload.folderId = folderID;
-        }
-
-        try {
-            // STEP 3 — Initiate upload
-            const initiateRes = await initiateVideoUploadAPI(payload, courseId, "application/json");
-
-            if (!initiateRes?.status) {
-                Swal.fire({ icon: "error", title: "Failed", text: "Failed to initiate upload" });
-                setIsUploading(false);
-                return;
-            }
-
-            const uploadEntries = initiateRes.data;
-
-            if (!uploadEntries?.length) {
-                Swal.fire({
-                    icon: "error",
-                    title: "Failed",
-                    text: "No presigned URLs received!"
-                });
-                setIsUploading(false);
-                return;
-            }
-
-            const uploadResults = [];
-
-            // STEP 4 — Upload each file
-            for (let i = 0; i < uploadEntries.length; i++) {
-                const file = selectedFiles[i];
-                const entry = uploadEntries[i];
-
-                try {
-                    const putRes = await axios.put(entry.presignedUrl, file, {
-                        headers: {
-                            "Content-Type": file.type,
-                        }
-                    });
-
-                    const eTag = putRes.headers?.etag?.replace(/"/g, "") || "no-etag-returned";
-
-                    uploadResults.push({
-                        uploadId: entry.uploadId,
-                        eTag: eTag,
-                        checksumSha256: ""
-                    });
-
-                } catch (uploadErr) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Error",
-                        text: `Upload failed for ${file.name}`
-                    });
-                    setIsUploading(false);
-                    return;
-                }
-            }
-
-            // STEP 5 — Notify backend upload is complete
-            const completeRes = await completeVideoUploadAPI(uploadResults, courseId, "application/json");
-
-            if (completeRes?.status) {
-                const addedVideos = (completeRes.data || []).map(v => ({
-                    id: v.courseContentId,
-                    name: v.fileName || "Uploaded Video",
-                    type: "video",
-                    url: v.presignedGetUrl
-                }));
-
-                await setContents(prev => [...prev, ...addedVideos]);
-
-                Swal.fire({
-                    icon: "success",
-                    title: "Uploaded Successfully",
-                    timer: 1200,
-                    showConfirmButton: false
-                });
-
-                onAddFolderHandler(completeRes);
-            } else {
-                Swal.fire({
-                    icon: "error",
-                    title: "Upload Failed",
-                    text: "Something went wrong."
-                });
-            }
-
-            toggle();
-
-        } catch (err) {
-            console.error("Upload error -", err);
-            Swal.fire({
-                icon: "error",
-                title: "Upload Failed",
-                text: "Something went wrong."
-            });
-        }
-
-        setIsUploading(false); // STOP LOADER (always)
-    };
+export const AddVideo = ({
+    isOpen,
+    toggle,
+    selectedFiles,
+    isUploading,
+    handleFileChange,
+    handleUpload
+}) => {
 
     return (
         <Modal isOpen={isOpen} toggle={toggle}>
             <ModalHeader toggle={toggle}></ModalHeader>
 
             <ModalBody>
-                {/* FULL SCREEN LOADER */}
-                {/* {isUploading && (
-                    <div
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: "rgba(255, 255, 255, 0.8)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            zIndex: 9999
-                        }}
-                    >
-                        <div className="spinner-border" style={{ width: "3rem", height: "3rem" }}></div>
-                    </div>
-                )} */}
-
                 <div className="align-items-center d-flex flex-column">
 
                     <div className="avatar-sm flex-shrink-0">
@@ -185,7 +31,7 @@ export const AddVideo = ({ isOpen, toggle, courseId, setContents, onAddFolderHan
                     <Button
                         color="secondary"
                         className="rounded-pill mt-3"
-                        onClick={() => document.getElementById('video-upload').click()}
+                        onClick={() => document.getElementById("video-upload").click()}
                         disabled={isUploading}
                     >
                         Select File(s)
@@ -204,7 +50,9 @@ export const AddVideo = ({ isOpen, toggle, courseId, setContents, onAddFolderHan
                         <div className="mt-3 text-center">
                             <h6>Files Selected:</h6>
                             {selectedFiles.map((file, i) => (
-                                <p key={i} className="text-muted">{file.name} ({file.size} bytes)</p>
+                                <p key={i} className="text-muted">
+                                    {file.name} ({file.size} bytes)
+                                </p>
                             ))}
                         </div>
                     )}
