@@ -3,9 +3,7 @@ import { Button, Form, FormGroup, Input, Label, Modal, ModalBody, ModalHeader } 
 import { createFolderAPI } from "../../../../api/course";
 import Swal from "sweetalert2";
 
-export const AddFolder = ({ isOpen, toggle, onAddFolderHandler, courseId, folderID }) => {
-    console.log("folderID add folder=",folderID);
-    
+export const AddFolder = ({ isOpen, toggle, onAddFolderHandler, courseId, folderID }) => {    
     courseId = courseId ? courseId : 80046 // for testing
     const [folderName, setFolderName] = useState('');
     const [loading, setLoading] = useState(false);

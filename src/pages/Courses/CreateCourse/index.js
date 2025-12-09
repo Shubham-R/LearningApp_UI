@@ -45,7 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseDetailAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI,getCoursePricingAPI } from "../../../api/course";
+import { completeVideoUploadAPI, createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseDetailAPI, getCourseListAPI, initiateVideoUploadAPI, publishCourseAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI,getCoursePricingAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
@@ -55,19 +55,15 @@ import { AddImage } from "./Modals/AddImage";
 import CreatableSelect from "react-select/creatable";
 import Swal from "sweetalert2";
 import VideoModal from "./Modals/VideoModal";
+import axios from "axios";
 
 const CreateCourse = () => {
     const location = useLocation();
     const { courseData: editCourseData, isEditMode } = location.state || {};
-    console.log("Edit Course Data:", editCourseData, isEditMode);
     const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
-    const [activeArrowTab, setactiveArrowTab] = useState(4);
-    const [activeVerticalTab, setactiveVerticalTab] = useState(7);
     const [progressbarvalue, setprogressbarvalue] = useState(0);
     const [passedSteps, setPassedSteps] = useState([1]);
-    const [passedarrowSteps, setPassedarrowSteps] = useState([1]);
-    const [passedverticalSteps, setPassedverticalSteps] = useState([1]);
     const [courseValidityType, setCourseValidityType] = useState(null);
     const [singleValidityType, setSingleValidityType] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -93,10 +89,6 @@ const CreateCourse = () => {
     }]);
     const [courseList, setCourseList] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [category, setCategory] = useState(null);
-    const [subCategory, setSubCategory] = useState(null);
-    const [courseSubCategory, setCourseSubCategory] = useState([]);
-    const [editorData, setEditorData] = useState("");
     const [subOptionsByRow, setSubOptionsByRow] = useState([[]]);
     const [courseData, setCourseData] = useState("");
     const [singleValidityDuration, setSingleValidityDuration] = useState("");
@@ -106,6 +98,7 @@ const CreateCourse = () => {
     const [priceData, setPriceData] = useState("");
     const [contents, setContents] = useState(null);
     const [modal_folder, setmodal_folder] = useState(false);
+    
     function tog_folder() {
         setmodal_folder(!modal_folder);
     }
@@ -177,53 +170,6 @@ const CreateCourse = () => {
         }
     }, [modalFolder]);
 
-    // Update Folder
-    const handleFolderClick = useCallback((arg) => {
-        const folder = arg;
-
-        setFolder({
-            id: folder.id,
-            folderName: folder.folderName,
-            folderFile: folder.folderFile,
-            size: folder.size,
-        });
-
-        setIsEdit(true);
-        folderToggle();
-    }, [folderToggle]);
-
-    // Add Folder
-    const handleFolderClicks = () => {
-        setFolder("");
-        setModalFolder(!modalFolder);
-        setIsEdit(false);
-        folderToggle();
-    };
-
-    // Delete Folder
-    const onClickFolderDelete = (folder) => {
-        setFolder(folder);
-        setDeleteModal(true);
-    };
-
-    const handleDeleteFolder = () => {
-
-        if (deleteAlt) {
-            if (folder) {
-                dispatch(onDeleteFolder(folder.id));
-                setDeleteModal(false);
-                setDeleteAlt(false);
-            }
-        } else {
-            if (file) {
-                dispatch(onDeleteFile(file.id));
-                setDeleteModal(false);
-                sidebarClose("file-detail-show");
-            }
-        }
-
-    };
-
     // Files
     const [file, setFile] = useState(null);
     const [modalFile, setModalFile] = useState(false);
@@ -248,36 +194,6 @@ const CreateCourse = () => {
             setModalFile(true);
         }
     }, [modalFile]);
-
-    // Update File
-    const handleFileClick = useCallback((arg) => {
-        const file = arg;
-
-        setFile({
-            id: file.id,
-            fileName: file.fileName,
-            fileItem: file.fileItem,
-            size: file.size,
-        });
-
-        setIsEdit(true);
-        fileToggle();
-    }, [fileToggle]);
-
-    // Add File
-    const handleFileClicks = () => {
-        setFile("");
-        setModalFile(!modalFile);
-        setIsEdit(false);
-        fileToggle();
-    };
-
-    // Delete File
-    const onClickFileDelete = (file) => {
-        setFile(file);
-        setDeleteModal(true);
-    };
-
 
     const [sidebarData, setSidebarData] = useState("");
 
@@ -307,19 +223,6 @@ const CreateCourse = () => {
     useEffect(() => {
         sidebarOpen("file-detail-show");
     }, []);
-
-    const favouriteBtn = (ele) => {
-        if (ele.closest("button").classList.contains("active")) {
-            ele.closest("button").classList.remove("active");
-        } else {
-            ele.closest("button").classList.add("active");
-        }
-    };
-
-    const fileSidebar = () => {
-        document.getElementById("folder-overview").style.display = "none";
-        document.getElementById("file-overview").style.display = "block";
-    };
 
     // Folder validation
     const folderValidation = useFormik({
@@ -413,38 +316,6 @@ const CreateCourse = () => {
         },
     });
 
-    // console.log(courseValidityType);
-
-    // let MultiValidityPlansData = [
-    //     {
-    //         validityDuration: 1,
-    //         validityDurationType: "months",
-    //         price: 0,
-    //         discount: 0,
-    //         effectivePrice: 0,
-    //         isPromoted: false,
-    //         isEditing: true,
-    //     }
-    // ]
-
-    const courseCategory = [
-        {
-            options: [
-                { label: "Category1", value: "Category1" },
-                { label: "Category2", value: "Category2" },
-            ],
-        },
-    ];
-
-    // const courseSubCategory = [
-    //     {
-    //         options: [
-    //             { label: "SubCategory1", value: "SubCategory1" },
-    //             { label: "SubCategory2", value: "SubCategory2" },
-    //         ],
-    //     },
-    // ];
-
     // Course duration type - PAID COURSE
     const paidCourseDurationTypes = [
         {
@@ -478,8 +349,6 @@ const CreateCourse = () => {
         },
     ];
 
-
-
     function toggleTab(tab, value) {
         if (activeTab !== tab) {
             var modifiedSteps = [...passedSteps, tab];
@@ -490,43 +359,6 @@ const CreateCourse = () => {
             }
         }
         setprogressbarvalue(value);
-    }
-
-    function toggleArrowTab(tab) {
-        if (activeArrowTab !== tab) {
-            var modifiedSteps = [...passedarrowSteps, tab];
-
-            if (tab >= 4 && tab <= 7) {
-                setactiveArrowTab(tab);
-                setPassedarrowSteps(modifiedSteps);
-            }
-        }
-    }
-
-    function toggleVerticalTab(tab) {
-        if (activeVerticalTab !== tab) {
-            var modifiedSteps = [...passedverticalSteps, tab];
-
-            if (tab >= 7 && tab <= 11) {
-                setactiveVerticalTab(tab);
-                setPassedverticalSteps(modifiedSteps);
-            }
-        }
-    }
-
-
-    const SingleOptions = [
-        { value: 'Watches', label: 'Watches' },
-        { value: 'Headset', label: 'Headset' },
-        { value: 'Sweatshirt', label: 'Sweatshirt' },
-        { value: '20% off', label: '20% off' },
-        { value: '4 star', label: '4 star' },
-    ];
-
-    const [selectedMulti, setselectedMulti] = useState(null);
-
-    const handleMulti = (selectedMulti) => {
-        setselectedMulti(selectedMulti);
     }
 
     // Multi-Validity Handlers
@@ -580,42 +412,6 @@ const CreateCourse = () => {
             }
         )
         setMultiValidityPlansData(copyMultiValidityPlansData)
-    }
-
-    // const onAddAnotherCategoryHandler = () => {
-    //     let copyCategoryMappings = cloneDeep(categoryMappings);
-    //     copyCategoryMappings.push(
-    //         {
-    //             categoryId: null,
-    //             categoryName: null,
-    //             subcategories: [
-    //                 {
-    //                     subCategoryId: null,
-    //                     subCategoryName: null,
-    //                 }
-    //             ]
-    //         }
-    //     )
-    //     setCategoryMappings(copyCategoryMappings)
-    // }
-
-    // const onRemovedCategoryHandler = (index) => {
-    //     let copyCategoryMappings = cloneDeep(categoryMappings);
-    //     copyCategoryMappings.splice(index, 1);
-    //     setCategoryMappings(copyCategoryMappings)
-    // }
-
-    //Dropzone file upload
-    const [selectedFiles, setselectedFiles] = useState([]);
-
-    const handleAcceptedFiles = (files) => {
-        files.map(file =>
-            Object.assign(file, {
-                preview: URL.createObjectURL(file),
-                formattedSize: formatBytes(file.size),
-            })
-        );
-        setselectedFiles(files);
     }
 
     /**
@@ -1079,10 +875,47 @@ const CreateCourse = () => {
         refreshContents(courseData?.courseId, currentFolder);
     };
 
-    // Fetch Course content by course ID
+    const detectFileType = (mimeType) => {
+        if (!mimeType) return "file";
+
+        if (mimeType.startsWith("video/")) return "video";
+        if (mimeType.startsWith("image/")) return "image";
+        if (mimeType.startsWith("audio/")) return "audio";
+
+        // Document types
+        if (mimeType === "application/pdf") return "pdf";
+        if (mimeType.includes("word") || mimeType.includes("officedocument.wordprocessingml")) return "doc";
+        if (mimeType.includes("spreadsheet")) return "excel";
+        if (mimeType.includes("presentation")) return "ppt";
+
+        return "document";
+    };
+
+    const getFileDisplayName = (fileType, contentId, mimeType) => {
+        switch (fileType) {
+            case "video":
+                return `Video ${contentId}`;
+            case "image":
+                return `Image ${contentId}`;
+            case "audio":
+                return `Audio ${contentId}`;
+            case "pdf":
+                return `PDF Document ${contentId}`;
+            case "doc":
+                return `Word Document ${contentId}`;
+            case "excel":
+                return `Excel File ${contentId}`;
+            case "ppt":
+                return `PowerPoint ${contentId}`;
+            default:
+                return `File ${contentId}`;
+        }
+    };
+
+    // Fetch Course content by course ID - list content API
     const refreshContents = async (courseId, folderID = 0) => {
         try {
-            const res = await getConetntDataByCourseIDAPI(courseId, folderID);            
+            const res = await getConetntDataByCourseIDAPI(courseId, folderID);       
             if (!res) return;
             if(res.status) {
                 const folderList = (res.data.courseContentFolderDetails || []).map(f => ({
@@ -1093,15 +926,19 @@ const CreateCourse = () => {
                     url: null
                 }));
     
-                const videoList = (res.data.courseContentPresignedDetails || []).map(v => ({
-                    id: v.courseContentId,
-                    name: `Video ${v.courseContentId}`,
-                    type: "video",
-                    url: v.presignedGetUrl
-                }));
-    
-                const finalData = [...folderList, ...videoList];
-                setContents(finalData);                
+                const fileList = (res.data.courseContentPresignedDetails || []).map(v => {
+                    const fileType = detectFileType(v.mimeType);
+
+                    return {
+                        id: v.courseContentId,
+                        name: getFileDisplayName(fileType, v.courseContentId, v.mimeType),
+                        type: fileType,
+                        url: v.presignedGetUrl
+                    };
+                });
+
+                const finalData = [...folderList, ...fileList];
+                setContents(finalData);               
             }
 
         } catch (err) {
@@ -1117,22 +954,241 @@ const CreateCourse = () => {
 
     // Inside Parent Folder - OPEN FOLDER
     const openFolder = (folder) => {
-        // SET CURRENT FOLDER ID
         setCurrentFolder(folder.id);
-
-        // CLEAR UI WHILE FETCHING
         setContents([]);
-
         // CALL API TO GET CHILD CONTENT
         refreshContents(courseData?.courseId, folder.id);
     };
-
 
     // GO BACK TO PARENT
     const goBackTo = () => {
         const folderId = 0;
         setCurrentFolder(folderId);
         refreshContents(courseData?.courseId, folderId); // load parent contents - folder id = 0 (parent folder)
+    };
+
+
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
+
+    // FILE SELECTION HANDLER
+        const handleFileChange = (e) => {
+            setSelectedFiles([]);
+            if (e.target.files) {
+                const filesArray = Array.from(e.target.files);
+                setSelectedFiles(filesArray);
+            }
+        };
+
+    // FULL UPLOAD HANDLER
+    const handleUpload = async () => {
+        if (!selectedFiles.length) {
+            Swal.fire({
+                icon: "error",
+                title: "Warning",
+                text: "Select at least one file"
+            });
+            return;
+        }
+
+        setIsUploading(true);
+
+        // --------- 1️ Detect File Type ----------
+        const extension = selectedFiles[0].name.split(".").pop().toLowerCase();
+
+        let mimeType = "application/octet-stream";
+
+        if (selectedFiles[0].type.startsWith("video/")) {
+            mimeType = selectedFiles[0].type; 
+        } else if (selectedFiles[0].type.startsWith("image/")) {
+            mimeType = selectedFiles[0].type;
+        } else {
+            // documents — map manually
+            const docMimeMap = {
+                pdf: "application/pdf",
+                doc: "application/msword",
+                docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                xls: "application/vnd.ms-excel",
+                xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ppt: "application/vnd.ms-powerpoint",
+                pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                txt: "text/plain"
+            };
+
+            mimeType = docMimeMap[extension] || "application/octet-stream";
+        }
+
+        // --------- 2️ Payload ----------
+        let payload = {
+            isExternal: currentFolder ? false : true,
+            mimeType: mimeType,
+            fileList: selectedFiles.map((file) => ({
+                isLocked: false,
+                fileName: file.name,
+                size: file.size,
+                multipart: false
+            }))
+        };
+
+        if (currentFolder !== 0) {
+            payload.folderId = currentFolder;
+        }
+
+        try {
+            // --------- 3️ INITIATE UPLOAD ----------
+            const initiateRes = await initiateVideoUploadAPI(
+                payload,
+                courseData?.courseId,
+                "application/json"
+            );
+
+            if (!initiateRes?.status) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: "Failed to initiate upload"
+                });
+                setIsUploading(false);
+                return;
+            }
+
+            const uploadEntries = initiateRes.data;
+
+            if (!uploadEntries?.length) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: "No presigned URLs received!"
+                });
+                setIsUploading(false);
+                return;
+            }
+
+            const uploadResults = [];
+
+            // --------- 4️ UPLOAD EACH FILE TO AWS S3 PRESIGNED URL----------
+            for (let i = 0; i < uploadEntries.length; i++) {
+
+                const file = selectedFiles[i];
+                const entry = uploadEntries[i];
+
+                try {
+                    const putRes = await axios.put(entry.presignedUrl, file, {
+                        headers: { "Content-Type": file.type }
+                    });
+
+                    const eTag = putRes.headers?.etag?.replace(/"/g, "") || "no-etag-returned";
+
+                    uploadResults.push({
+                        uploadId: entry.uploadId,
+                        eTag: eTag,
+                        checksumSha256: ""
+                    });
+
+                } catch (uploadErr) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: `Upload failed for ${file.name}`
+                    });
+                    setIsUploading(false);
+                    return;
+                }
+            }
+
+            // --------- 5️ COMPLETE UPLOAD ----------
+            const completeRes = await completeVideoUploadAPI(
+                uploadResults,
+                courseData?.courseId,
+                "application/json"
+            );
+
+            if (completeRes?.status) {
+                const uploadedItems = (completeRes.data || []).map((f) => ({
+                    id: f.courseContentId,
+                    name: f.fileName || "File",
+                    type: selectedFiles[0].type.startsWith("image/")
+                        ? "image"
+                        : selectedFiles[0].type.startsWith("video/")
+                            ? "video"
+                            : "document",
+                    url: f.presignedGetUrl
+                }));
+
+                await setContents(prev => [...prev, ...uploadedItems]);
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Uploaded Successfully",
+                    timer: 1200,
+                    showConfirmButton: false
+                });
+
+                onAddFolderHandler(completeRes);
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "Upload Failed",
+                    text: "Something went wrong."
+                });
+            }
+
+            if (selectedFiles[0].type.startsWith("image/")) tog_image();
+            else if (selectedFiles[0].type.startsWith("video/")) tog_video();
+            else tog_document();
+
+        } catch (err) {
+            console.error("Upload error -", err);
+            Swal.fire({
+                icon: "error",
+                title: "Upload Failed",
+                text: "Something went wrong."
+            });
+        }
+
+        setIsUploading(false);
+    };
+
+    // Function to publish course
+    const handlePublishCourse = async (courseId, onSuccess) => {
+        try {
+            Swal.fire({
+                title: "Publishing...",
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+            });
+
+            const response = await publishCourseAPI(courseId, "application/json");
+
+            Swal.close();
+
+            if (response?.status) {
+                Swal.fire({
+                    icon: "success",
+                    title: "Course Published Successfully",
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+
+                if (onSuccess) onSuccess();
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: response?.message || "Something went wrong while publishing the course.",
+                });
+            }
+        } catch (err) {
+            Swal.close();
+            console.error("Publish error:", err);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: err.message || "Something went wrong while publishing the course.",
+            });
+        }
     };
 
     useEffect(() => {
@@ -1330,7 +1386,7 @@ const CreateCourse = () => {
 
         fetchPricingData();
     }, [editCourseData, isEditMode]);
-         
+
     document.title = isEditMode ? "Update Course | Classplus" : "Create Course | Classplus";
 
     return (
@@ -2175,9 +2231,7 @@ const CreateCourse = () => {
                                                                                 </Col>
                                                                             ) : (
                                                                             <>
-                                                                                {(contents || []).map((item, key) => (
-                                                                                    console.log("item--",item),
-                                                                                    
+                                                                                {(contents || []).map((item, key) => (                                                                                 
                                                                                     <Col xxl={12} className="col-6 folder-card" key={key}>
 
                                                                                         <Card className="bg-light shadow-none">
@@ -2186,35 +2240,49 @@ const CreateCourse = () => {
                                                                                                 <Row>
 
                                                                                                     {/* ICON */}
-                                                                                                    <Col sm={1}>
-                                                                                                        {item.type === "folder"
-                                                                                                            ? <i className="ri-folder-2-fill text-warning display-5"></i>
-                                                                                                            : <i className="ri-video-fill text-danger display-5"></i>
-                                                                                                        }
-                                                                                                    </Col>
+                                                                                                        <Col sm={1}>
+                                                                                                            {item.type === "folder" ? (
+                                                                                                                <i className="ri-folder-2-fill text-warning display-5"></i>
+                                                                                                            ) : item.type === "video" ? (
+                                                                                                                <i className="ri-video-fill text-danger display-5"></i>
+                                                                                                            ) : item.type === "image" ? (
+                                                                                                                <i className="ri-image-fill text-info display-5"></i>
+                                                                                                            ) : (item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls"|| item.type === "ppt"|| item.type === "pptx"|| item.type === "txt") ? (
+                                                                                                                <i className="ri-file-text-fill text-primary display-5"></i>
+                                                                                                            ) : null}
+                                                                                                        </Col>
 
                                                                                                     {/* NAME + FILE COUNT */}
-                                                                                                        <Col sm={10}>
-                                                                                                            <div className="text-muted mt-2">
-
-                                                                                                                <h6 className="fs-15">{item.name}</h6>
-
-                                                                                                                {item.type === "folder" ? (
-                                                                                                                    <span><b>{item.videoCount}</b> Files</span>
-                                                                                                                ) : (
-                                                                                                                    <span
-                                                                                                                        className="text-primary"
-                                                                                                                        style={{ cursor: "pointer" }}
-                                                                                                                        onClick={() => {
-                                                                                                                            setSelectedVideoUrl(item.url);
-                                                                                                                            setVideoModalOpen(true);
-                                                                                                                        }}
-                                                                                                                    >
-                                                                                                                        Watch Video
-                                                                                                                    </span>
-                                                                                                                )}
-                                                                                                            </div>
-                                                                                                        </Col>
+                                                                                                    <Col sm={10}>
+                                                                                                        <div className="text-muted mt-2">
+                                                                                                            <h6 className="fs-15">{item.name}</h6>
+                                                                                                            
+                                                                                                            {item.type === "folder" ? (
+                                                                                                                <span><b>{item.videoCount}</b> Files</span>
+                                                                                                            ) : item.type === "video" ? (
+                                                                                                                <span
+                                                                                                                    className="text-primary"
+                                                                                                                    style={{ cursor: "pointer" }}
+                                                                                                                    onClick={() => {
+                                                                                                                        setSelectedVideoUrl(item.url);
+                                                                                                                        setVideoModalOpen(true);
+                                                                                                                    }}
+                                                                                                                >
+                                                                                                                    Watch Video
+                                                                                                                </span>
+                                                                                                            ) : item.type === "image" || item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls"|| item.type === "ppt"|| item.type === "pptx"|| item.type === "txt" ? (
+                                                                                                                <span
+                                                                                                                    className="text-primary"
+                                                                                                                    style={{ cursor: "pointer" }}
+                                                                                                                    onClick={() => {
+                                                                                                                        window.open(item.url, "_blank");
+                                                                                                                    }}
+                                                                                                                >
+                                                                                                                    {item.type === "image" ? "Open Image" : "Open Document"}
+                                                                                                                </span>
+                                                                                                            ) : null}
+                                                                                                        </div>
+                                                                                                    </Col>
 
                                                                                                     {/* MENU */}
                                                                                                         <Col sm={1}>
@@ -2342,11 +2410,14 @@ const CreateCourse = () => {
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
                                                         onClick={() => {
-                                                            toggleTab(activeTab + 1, 100);
+                                                            handlePublishCourse(courseData?.courseId, () => {
+                                                                // Move to next tab after successful publish
+                                                                toggleTab(activeTab + 1, 100);
+                                                            });
                                                         }}
                                                     >
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
-                                                        Submit
+                                                        Submit here
                                                     </button>
                                                 </div>
                                             </TabPane>
@@ -2375,9 +2446,9 @@ const CreateCourse = () => {
                             </Card>
                         </Col>
                         <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId} folderID = {currentFolder}/>
-                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} courseId={courseData?.courseId} setContents={setContents} onAddFolderHandler={onAddFolderHandler} folderID = {currentFolder}/>
-                        <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} />
-                        <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} />
+                        <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload} />
+                        <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload}/>
+                        <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload}/>
                         <VideoModal isOpen={videoModalOpen} toggle={toggleVideoModal} videoUrl={selectedVideoUrl} />
 
                         {/* <Col lg={12}>
