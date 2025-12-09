@@ -16,6 +16,7 @@ const authProtectedRoutes = [
   { path: "/dashboard", component: <DashboardEcommerce /> },
   { path: "/courses", component: <Courses /> },
   { path: "/create-course", component: <CreateCourse /> },
+  { path: "/update-course/:courseId", component: <CreateCourse /> },
   { path: "/course-details/:courseId", component: <CourseDetail /> },
 
  

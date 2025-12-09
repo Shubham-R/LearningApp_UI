@@ -60,7 +60,12 @@ const CourseDetails = () => {
     };
 
     const handleEdit = () => {
-        navigate("/create-course");
+        navigate(`/update-course/${courseId}`, {
+            state: {
+                courseData: courseDetails,
+                isEditMode: true
+            }
+        });
     };
 
     const handleDelete = () => {
