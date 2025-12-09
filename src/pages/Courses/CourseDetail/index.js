@@ -63,7 +63,8 @@ const CourseDetails = () => {
         navigate(`/update-course/${courseId}`, {
             state: {
                 courseData: courseDetails,
-                isEditMode: true
+                isEditMode: true,
+                courseStatus: courseStatus
             }
         });
     };
