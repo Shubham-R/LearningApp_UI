@@ -77,3 +77,11 @@ export const initiateVideoUploadAPI = async (payload, courseId, contentType) => 
 export const completeVideoUploadAPI = async (payload, courseId, contentType) => {
   return await postMethodCall(`${config.api.API_URL}/course-content/uploads-complete?courseId=${courseId}`, payload, contentType); 
 };
+
+
+// C) PUBLISH
+// Publish Course
+// http://65.1.63.20:8080/api/v1/course-content/publish-course?courseId=80006&userId=101
+export const publishCourseAPI = async (courseId, contentType) => {
+  return await postMethodCall(`${config.api.API_URL}/course-content/publish-course?courseId=${courseId}`, contentType);
+}
