@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { cloneDeep } from "lodash";
 import React, { useState, useCallback, useEffect } from 'react';
 import Flatpickr from "react-flatpickr";
-import { Link } from "react-router-dom";
+import { Link , useLocation, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import {
     Card,
@@ -45,7 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI } from "../../../api/course";
+import { createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseDetailAPI, getCourseListAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI,getCoursePricingAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
@@ -57,6 +57,10 @@ import Swal from "sweetalert2";
 import VideoModal from "./Modals/VideoModal";
 
 const CreateCourse = () => {
+    const location = useLocation();
+    const { courseData: editCourseData, isEditMode } = location.state || {};
+    console.log("Edit Course Data:", editCourseData, isEditMode);
+    const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
     const [activeArrowTab, setactiveArrowTab] = useState(4);
     const [activeVerticalTab, setactiveVerticalTab] = useState(7);
@@ -657,7 +661,8 @@ const CreateCourse = () => {
             expiryDate: "",
             single: null,
             multiple: null,
-            lifetimePrice: null
+            lifetimePrice: null,
+            targetCourseId: null
         },
         onSubmit: async (values) => {
             try {
@@ -748,19 +753,18 @@ const CreateCourse = () => {
                     return;
                 }
 
-                if (priceData?.pricePlanId && priceData?.courseId) {
+                // Check if we're updating existing pricing (has pricingId from priceData)
+                if (priceData?.pricingId && priceData?.courseId) {
                     payload.courseId = priceData?.courseId;
-                    payload.pricePlanId = priceData?.pricePlanId;
+                    payload.pricePlanId = priceData?.pricingId; // Use pricingId instead of pricePlanId
                     const updatePriceResponse = await updatePriceAPI(payload);
                     if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
                         setPriceData(updatePriceResponse?.data);
-                        // toggleTab(activeTab + 1, 67);
                     }
                 } else {
                     const response = await createPricingAPI(payload);
                     if (response?.status === true && response?.data) {
                         setPriceData(response?.data);
-                        // toggleTab(activeTab + 1, 67);
                     }
                 }
 
@@ -902,12 +906,26 @@ const CreateCourse = () => {
                 const payload = {
                     courseName: values.courseName,
                     courseDescription: values.courseDescription,
-                    courseImageUrl: values.courseImage
-                        ? values.courseImage.name
-                        : "http://default-image-url.com",
+                    // courseImageUrl: values.courseImage
+                    //     ? values.courseImage.name
+                    //     : "http://default-image-url.com",
                     courseImageId: values.courseImageId,
                     categoryMappings: categoryMappingsPayload,
                 };
+
+                if (values.courseImage) {
+                    // New image uploaded
+                    payload.courseImageUrl = values.courseImage.name;
+                } else if (courseData?.courseImageUrl) {
+                    // Use existing image URL from courseData
+                    payload.courseImageUrl = courseData.courseImageUrl;
+                } else if (editCourseData?.courseImageUrl) {
+                    // Use edit data image URL
+                    payload.courseImageUrl = editCourseData.courseImageUrl;
+                } else {
+                    // Default fallback
+                    payload.courseImageUrl = "http://default-image-url.com";
+                }
 
                 // If courseId exists, update draft course
                 if (courseData?.courseId) {
@@ -915,13 +933,28 @@ const CreateCourse = () => {
                     payload.courseStatus = courseData?.courseStatus;
                     const updateResponse = await updateDraftCourseAPI(payload);
                     if (updateResponse?.status === true && updateResponse?.data) {
-                        setCourseData(updateResponse?.data)
+                        setCourseData(updateResponse?.data);
+
+                        // Fetch pricing data if in edit mode
+                        if (isEditMode) {
+                            const pricingParams = {
+                                courseId: updateResponse.data.courseId,
+                                expand: "durations"
+                            };
+                            const pricingResponse = await getCoursePricingAPI(pricingParams);
+
+                            if (pricingResponse?.status && pricingResponse.data?.length > 0) {
+                                
+                            }
+                        }
+
                         toggleTab(activeTab + 1, 33);
                     }
-                } else { // Else, create a new draft course
+                } else {
+                    // Else, create a new draft course
                     const response = await createDraftCourseAPI(payload);
                     if (response?.status === true && response?.data) {
-                        setCourseData(response?.data)
+                        setCourseData(response?.data);
                         toggleTab(activeTab + 1, 33);
                     }
                 }
@@ -935,6 +968,14 @@ const CreateCourse = () => {
     const handleThumbnailUpload = async (e) => {
         const file = e.currentTarget.files[0];
         if (!file) return;
+
+        // Create preview for selected image
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreviewImage(reader.result);
+        };
+        reader.readAsDataURL(file);
+
         const formData = new FormData();
         formData.append("file", file);
 
@@ -958,12 +999,22 @@ const CreateCourse = () => {
             }
         } catch (err) {
             console.error("Image upload failed:", err);
-
             Swal.fire({
                 icon: "error",
                 title: "Upload Failed",
                 text: "Something went wrong while uploading the image."
             });
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setPreviewImage(null);
+        formik.setFieldValue("courseImage", null);
+        formik.setFieldValue("courseImageId", null);
+        // Reset file input
+        const fileInput = document.getElementById("project-thumbnail-img");
+        if (fileInput) {
+            fileInput.value = "";
         }
     };
 
@@ -1084,19 +1135,219 @@ const CreateCourse = () => {
         refreshContents(courseData?.courseId, folderId); // load parent contents - folder id = 0 (parent folder)
     };
 
+    useEffect(() => {
+        if (editCourseData && isEditMode) {
+            // Populate basic information
+            formik.setValues({
+                courseName: editCourseData.courseName || "",
+                courseDescription: editCourseData.courseDescription || "",
+                courseImage: null,
+                courseImageId: editCourseData.courseImageId || null,
+                selectedCategories: editCourseData.categoryMappings?.map(cat => ({
+                    category: {
+                        value: cat.categoryId,
+                        label: cat.categoryName
+                    },
+                    subCategory: cat.subcategories?.map(sub => ({
+                        value: sub.subCategoryId,
+                        label: sub.subCategoryName
+                    })) || []
+                })) || [{ category: null, subCategory: [] }]
+            });
+
+            // NEW: Set preview image if exists
+            if (editCourseData.courseImageUrl) {
+                setPreviewImage(editCourseData.courseImageUrl);
+            }
+
+            // Set course data with image URL
+            setCourseData({
+                courseId: editCourseData.courseId,
+                courseName: editCourseData.courseName,
+                courseStatus: editCourseData.courseStatus || "DRAFT",
+                courseImageUrl: editCourseData.courseImageUrl // ✅ NEW
+            });
+
+            // Populate subcategory options for each row
+            const subOptions = editCourseData.categoryMappings?.map(cat => {
+                return cat.subcategories?.map(sub => ({
+                    value: sub.subCategoryId,
+                    label: sub.subCategoryName
+                })) || [];
+            }) || [];
+            setSubOptionsByRow(subOptions);
+
+            // Populate pricing information if durations exist
+            if (editCourseData.durations && editCourseData.durations.length > 0) {
+                const duration = editCourseData.durations[0];
+
+                // Set validity type based on duration
+                if (duration.durationUnit) {
+                    setCourseValidityType({
+                        value: "SingleValidity",
+                        label: "Single Validity"
+                    });
+
+                    setSingleValidityDuration(duration.durationValue);
+                    setSingleValidityType({
+                        value: duration.durationUnit.toLowerCase(),
+                        label: `${duration.durationUnit.charAt(0)}${duration.durationUnit.slice(1).toLowerCase()}(s)`
+                    });
+                }
+
+                // Set pricing
+                setPrice(editCourseData.globalPrice?.toString() || "");
+                setDiscount(editCourseData.globalDiscount?.toString() || "");
+                setEffectivePrice(editCourseData.globalEffectivePrice?.toString() || "");
+            }
+
+            // Set active tab to show data
+            setactiveTab(1);
+        }
+    }, [editCourseData, isEditMode]);
+
+    // const navigate = useNavigate();
+
+    // Add this function
+    // const handleBackToCourseDetails = () => {
+    //     if (isEditMode && courseData?.courseId) {
+    //         navigate(`/course-details/${courseData.courseId}`, {
+    //             state: {
+    //                 courseName: courseData.courseName,
+    //                 courseStatus: courseData.courseStatus
+    //             }
+    //         });
+    //     } else {
+    //         navigate('/courses');
+    //     }
+    // };
+
+    useEffect(() => {
+        const fetchPricingData = async () => {
+            if (editCourseData && isEditMode && editCourseData.courseId) {
+                try {
+                    const params = {
+                        courseId: editCourseData.courseId,
+                        expand: "durations" // This will include durations in the response
+                    };
+
+                    const response = await getCoursePricingAPI(params);
+
+                    if (response?.status === true && Array.isArray(response?.data) && response.data.length > 0) {
+                        const pricingData = response.data[0]; // Get first pricing plan
+
+                        // Set price data for update operations
+                        setPriceData(pricingData);
+
+                        // Set plan type (PAID/FREE)
+                        coursePricingValidation.setFieldValue("planType", pricingData.planType || "PAID");
+
+                        // Handle different validity types
+                        if (pricingData.validityType === "SINGLE") {
+                            // Single Validity
+                            setCourseValidityType({
+                                value: "SingleValidity",
+                                label: "Single Validity"
+                            });
+
+                            // Check if durations array exists and has data
+                            if (pricingData.durations && pricingData.durations.length > 0) {
+                                const duration = pricingData.durations[0];
+                                setSingleValidityDuration(duration.duration?.toString() || "");
+                                setSingleValidityType({
+                                    value: duration.durationUnit?.toLowerCase() || "months",
+                                    label: `${duration.durationUnit?.charAt(0)}${duration.durationUnit?.slice(1).toLowerCase()}(s)`
+                                });
+                                setPrice(duration.price?.toString() || "0");
+                                setDiscount(duration.discountPercent?.toString() || "0");
+                                setEffectivePrice(duration.effectivePrice?.toString() || "0");
+                            }
+
+                            // Set target course for FREE courses
+                            if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                            }
+                        }
+                        else if (pricingData.validityType === "MULTIPLE") {
+                            // Multiple Validity
+                            setCourseValidityType({
+                                value: "MultipleValidity",
+                                label: "Multiple Validity"
+                            });
+
+                            if (pricingData.durations && pricingData.durations.length > 0) {
+                                const multiPlans = pricingData.durations.map((dur, index) => ({
+                                    planId: index + 1,
+                                    validityDuration: dur.duration,
+                                    validityDurationType: dur.durationUnit?.toLowerCase() || "months",
+                                    price: dur.price || 0,
+                                    discount: dur.discountPercent || 0,
+                                    effectivePrice: dur.effectivePrice || 0,
+                                    isPromoted: false,
+                                    isEditing: false,
+                                }));
+                                setMultiValidityPlansData(multiPlans);
+                            }
+                        }
+                        else if (pricingData.validityType === "LIFETIME") {
+                            // Lifetime Validity
+                            setCourseValidityType({
+                                value: "LifetimeValidity",
+                                label: "Lifetime Validity"
+                            });
+
+                            coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                            coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                            coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+                        }
+                        else if (pricingData.validityType === "EXPIRY_DATE") {
+                            // Course Expiry Date
+                            setCourseValidityType({
+                                value: "CourseExpiryDate",
+                                label: "Course Expiry Date"
+                            });
+
+                            // Set expiry date
+                            if (pricingData.expiryDate) {
+                                coursePricingValidation.setFieldValue("expiryDate", new Date(pricingData.expiryDate));
+                            }
+
+                            coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                            coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                            coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+
+                            // Set target course for FREE courses
+                            if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching pricing data:", error);
+                }
+            }
+        };
+
+        fetchPricingData();
+    }, [editCourseData, isEditMode]);
          
-    document.title = "Create Course | Classplus";
+    document.title = isEditMode ? "Update Course | Classplus" : "Create Course | Classplus";
 
     return (
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title="Create Course" pageTitle="Courses" />
+                    <BreadCrumb
+                        title={isEditMode ? "Update Course" : "Create Course"}
+                        pageTitle="Courses"
+                    />
                     <Row>
                         <Col xl={12}>
                             <Card>
                                 <CardHeader>
-                                    <h4 className="card-title mb-4">Add / View content of your course</h4>
+                                    <h4 className="card-title mb-4">
+                                        {isEditMode ? "Update content of your course" : "Add / View content of your course"}
+                                    </h4>
                                     <div className="progress-nav mb-2">
                                         <Progress
                                             value={progressbarvalue}
@@ -1280,23 +1531,58 @@ const CreateCourse = () => {
                                                                 </Col>
 
                                                                 {/* Thumbnail */}
-                                                                <Col lg={12}>
-                                                                    <div>
-                                                                        <Label className="form-label" htmlFor="project-thumbnail-img">
-                                                                            Thumbnail Image
-                                                                        </Label>
-                                                                        <Input
-                                                                            className="form-control"
-                                                                            id="project-thumbnail-img"
-                                                                            type="file"
-                                                                            accept="image/png, image/gif, image/jpeg"
-                                                                            // onChange={(e) =>
-                                                                            //     formik.setFieldValue("courseImage", e.currentTarget.files[0])
-                                                                            // }
-                                                                            onChange={handleThumbnailUpload}
-                                                                        />
-                                                                    </div>
-                                                                </Col>
+                                                                <Row>
+                                                                    {/* File Input Column */}
+                                                                    <Col lg={6}>
+                                                                        <div>
+                                                                            <Label className="form-label" htmlFor="project-thumbnail-img">
+                                                                                Thumbnail Image
+                                                                            </Label>
+
+                                                                            {/* File Input */}
+                                                                            <Input
+                                                                                className="form-control"
+                                                                                id="project-thumbnail-img"
+                                                                                type="file"
+                                                                                accept="image/png, image/gif, image/jpeg"
+                                                                                onChange={handleThumbnailUpload}
+                                                                            />
+                                                                            <small className="text-muted">
+                                                                                {previewImage ? 'Upload a new image to replace the current one' : 'Upload course thumbnail'}
+                                                                            </small>
+                                                                        </div>
+                                                                    </Col>
+
+                                                                    {/* Image Preview Column */}
+                                                                    <Col lg={6}>
+                                                                        {previewImage && (
+                                                                            <div>
+                                                                                <Label className="form-label">Preview</Label>
+                                                                                <div className="position-relative" style={{ maxWidth: '300px' }}>
+                                                                                    <img
+                                                                                        src={previewImage}
+                                                                                        alt="Course Thumbnail Preview"
+                                                                                        className="img-fluid rounded"
+                                                                                        style={{
+                                                                                            width: '100%',
+                                                                                            height: '50%',
+                                                                                            objectFit: 'cover',
+                                                                                            border: '2px solid #e9ecef'
+                                                                                        }}
+                                                                                    />
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
+                                                                                        onClick={handleRemoveImage}
+                                                                                        title="Remove Image"
+                                                                                    >
+                                                                                        <i className="ri-close-line"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </Col>
+                                                                </Row>
                                                             </Row>
 
                                                             {/* Category Rows */}
@@ -1391,7 +1677,7 @@ const CreateCourse = () => {
                                                         type="button"
                                                         className="btn btn-success btn-label right ms-auto nexttab nexttab"
                                                         onClick={formik.handleSubmit}
-                                                        disabled={!formik.isValid || !formik.dirty} // Disable until form is valid
+                                                        disabled={!formik.isValid || !formik.dirty}
                                                     >
                                                         <i className="ri-arrow-right-line label-icon align-middle fs-16 ms-2"></i>
                                                         Edit Price

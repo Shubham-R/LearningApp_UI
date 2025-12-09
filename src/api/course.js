@@ -32,6 +32,11 @@ export const updateCourseImageAPI = async (payload) => {
   return await postMultipartCall(`${config.api.API_URL}/course-categories/upload-image`, payload);
 };
 
+// Get course pricing
+export const getCoursePricingAPI = async (params) => {
+  return await getMethodCall(`${config.api.API_URL}/course-pricing-duration/get-pricing?courseId=${params.courseId}&expand=${params.expand}`);
+};
+
 // ----------------------------------- Price APIs - Tab 2 -------------------------------------------------
 
 // Create Pricing
