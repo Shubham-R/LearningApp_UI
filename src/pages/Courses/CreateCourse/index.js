@@ -1283,7 +1283,7 @@ const CreateCourse = () => {
     // Fetch full course details from API when in edit mode
     useEffect(() => {
         const fetchCourseDetails = async () => {
-            if (editCourseData && isEditMode && editCourseData.courseId) {
+            if (isEditMode && editCourseData && editCourseData.courseId) {
                 try {
                     const payload = {
                         courseId: editCourseData.courseId,
@@ -1291,10 +1291,10 @@ const CreateCourse = () => {
                         courseStatus: courseStatus
                     };
                     const response = await getCourseDetailAPI(payload);
-                    
+
                     if (response?.status === true && response?.data) {
                         const detailData = response.data;
-                        
+
                         // Populate basic information from API response
                         formik.setValues({
                             courseName: detailData.courseName || "",
