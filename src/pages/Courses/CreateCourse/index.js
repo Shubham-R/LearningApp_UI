@@ -59,7 +59,7 @@ import axios from "axios";
 
 const CreateCourse = () => {
     const location = useLocation();
-    const { courseData: editCourseData, isEditMode } = location.state || {};
+    const { courseData: editCourseData, isEditMode ,courseStatus} = location.state || {};
     const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
     const [progressbarvalue, setprogressbarvalue] = useState(0);
@@ -740,7 +740,96 @@ const CreateCourse = () => {
                             const pricingResponse = await getCoursePricingAPI(pricingParams);
 
                             if (pricingResponse?.status && pricingResponse.data?.length > 0) {
-                                
+                                const pricingData = pricingResponse.data[0];
+
+                                // Set price data for update operations
+                                setPriceData(pricingData);
+
+                                // Set plan type (PAID/FREE)
+                                coursePricingValidation.setFieldValue("planType", pricingData.planType || "PAID");
+
+                                // Handle different validity types
+                                if (pricingData.validityType === "SINGLE") {
+                                    // Single Validity
+                                    setCourseValidityType({
+                                        value: "SingleValidity",
+                                        label: "Single Validity"
+                                    });
+
+                                    // Check if durations array exists and has data
+                                    if (pricingData.durations && pricingData.durations.length > 0) {
+                                        const duration = pricingData.durations[0];
+                                        setSingleValidityDuration(duration.duration?.toString() || "");
+                                        setSingleValidityType({
+                                            value: duration.durationUnit?.toLowerCase() || "months",
+                                            label: `${duration.durationUnit?.charAt(0)}${duration.durationUnit?.slice(1).toLowerCase()}(s)`
+                                        });
+                                        setPrice(duration.price?.toString() || "0");
+                                        setDiscount(duration.discountPercent?.toString() || "0");
+                                        setEffectivePrice(duration.effectivePrice?.toString() || "0");
+                                    }
+
+                                    // Set target course for FREE courses
+                                    if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                        coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                                    }
+                                }
+                                else if (pricingData.validityType === "MULTIPLE") {
+                                    // Multiple Validity
+                                    setCourseValidityType({
+                                        value: "MultipleValidity",
+                                        label: "Multiple Validity"
+                                    });
+
+                                    if (pricingData.durations && pricingData.durations.length > 0) {
+                                        const multiPlans = pricingData.durations.map((dur, index) => ({
+                                            planId: index + 1,
+                                            validityDuration: dur.duration,
+                                            validityDurationType: dur.durationUnit?.toLowerCase() || "months",
+                                            price: dur.price || 0,
+                                            discount: dur.discountPercent || 0,
+                                            effectivePrice: dur.effectivePrice || 0,
+                                            isPromoted: false,
+                                            isEditing: false,
+                                        }));
+                                        setMultiValidityPlansData(multiPlans);
+                                    }
+                                }
+                                else if (pricingData.validityType === "LIFETIME") {
+                                    // Lifetime Validity
+                                    setCourseValidityType({
+                                        value: "LifetimeValidity",
+                                        label: "Lifetime Validity"
+                                    });
+
+                                    coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                                    coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                                    coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+                                }
+                                else if (pricingData.validityType === "EXPIRY_DATE") {
+                                    // Course Expiry Date
+                                    setCourseValidityType({
+                                        value: "CourseExpiryDate",
+                                        label: "Course Expiry Date"
+                                    });
+
+                                    // Set expiry date
+                                    if (pricingData.expiryDate) {
+                                        coursePricingValidation.setFieldValue("expiryDate", new Date(pricingData.expiryDate));
+                                    }
+
+                                    coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                                    coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                                    coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+
+                                    // Set target course for FREE courses
+                                    if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                        coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                                    }
+                                }
+
+                                // Move to pricing tab (tab 2)
+                                toggleTab(2, 33);
                             }
                         }
 
@@ -1191,200 +1280,95 @@ const CreateCourse = () => {
         }
     };
 
+    // Fetch full course details from API when in edit mode
     useEffect(() => {
-        if (editCourseData && isEditMode) {
-            // Populate basic information
-            formik.setValues({
-                courseName: editCourseData.courseName || "",
-                courseDescription: editCourseData.courseDescription || "",
-                courseImage: null,
-                courseImageId: editCourseData.courseImageId || null,
-                selectedCategories: editCourseData.categoryMappings?.map(cat => ({
-                    category: {
-                        value: cat.categoryId,
-                        label: cat.categoryName
-                    },
-                    subCategory: cat.subcategories?.map(sub => ({
-                        value: sub.subCategoryId,
-                        label: sub.subCategoryName
-                    })) || []
-                })) || [{ category: null, subCategory: [] }]
-            });
-
-            // NEW: Set preview image if exists
-            if (editCourseData.courseImageUrl) {
-                setPreviewImage(editCourseData.courseImageUrl);
-            }
-
-            // Set course data with image URL
-            setCourseData({
-                courseId: editCourseData.courseId,
-                courseName: editCourseData.courseName,
-                courseStatus: editCourseData.courseStatus || "DRAFT",
-                courseImageUrl: editCourseData.courseImageUrl // ✅ NEW
-            });
-
-            // Populate subcategory options for each row
-            const subOptions = editCourseData.categoryMappings?.map(cat => {
-                return cat.subcategories?.map(sub => ({
-                    value: sub.subCategoryId,
-                    label: sub.subCategoryName
-                })) || [];
-            }) || [];
-            setSubOptionsByRow(subOptions);
-
-            // Populate pricing information if durations exist
-            if (editCourseData.durations && editCourseData.durations.length > 0) {
-                const duration = editCourseData.durations[0];
-
-                // Set validity type based on duration
-                if (duration.durationUnit) {
-                    setCourseValidityType({
-                        value: "SingleValidity",
-                        label: "Single Validity"
-                    });
-
-                    setSingleValidityDuration(duration.durationValue);
-                    setSingleValidityType({
-                        value: duration.durationUnit.toLowerCase(),
-                        label: `${duration.durationUnit.charAt(0)}${duration.durationUnit.slice(1).toLowerCase()}(s)`
-                    });
-                }
-
-                // Set pricing
-                setPrice(editCourseData.globalPrice?.toString() || "");
-                setDiscount(editCourseData.globalDiscount?.toString() || "");
-                setEffectivePrice(editCourseData.globalEffectivePrice?.toString() || "");
-            }
-
-            // Set active tab to show data
-            setactiveTab(1);
-        }
-    }, [editCourseData, isEditMode]);
-
-    // const navigate = useNavigate();
-
-    // Add this function
-    // const handleBackToCourseDetails = () => {
-    //     if (isEditMode && courseData?.courseId) {
-    //         navigate(`/course-details/${courseData.courseId}`, {
-    //             state: {
-    //                 courseName: courseData.courseName,
-    //                 courseStatus: courseData.courseStatus
-    //             }
-    //         });
-    //     } else {
-    //         navigate('/courses');
-    //     }
-    // };
-
-    useEffect(() => {
-        const fetchPricingData = async () => {
-            if (editCourseData && isEditMode && editCourseData.courseId) {
+        const fetchCourseDetails = async () => {
+            if (isEditMode && editCourseData && editCourseData.courseId) {
                 try {
-                    const params = {
+                    const payload = {
                         courseId: editCourseData.courseId,
-                        expand: "durations" // This will include durations in the response
+                        courseName: editCourseData.courseName,
+                        courseStatus: courseStatus
                     };
+                    const response = await getCourseDetailAPI(payload);
 
-                    const response = await getCoursePricingAPI(params);
+                    if (response?.status === true && response?.data) {
+                        const detailData = response.data;
 
-                    if (response?.status === true && Array.isArray(response?.data) && response.data.length > 0) {
-                        const pricingData = response.data[0]; // Get first pricing plan
+                        // Populate basic information from API response
+                        formik.setValues({
+                            courseName: detailData.courseName || "",
+                            courseDescription: detailData.courseDescription || "",
+                            courseImage: null,
+                            courseImageId: detailData.courseImageId || null,
+                            selectedCategories: detailData.categoryMappings?.map(cat => ({
+                                category: {
+                                    value: cat.categoryId,
+                                    label: cat.categoryName
+                                },
+                                subCategory: cat.subcategories?.map(sub => ({
+                                    value: sub.subCategoryId,
+                                    label: sub.subCategoryName
+                                })) || []
+                            })) || [{ category: null, subCategory: [] }]
+                        });
 
-                        // Set price data for update operations
-                        setPriceData(pricingData);
+                        // Set preview image if exists
+                        if (detailData.courseImageUrl) {
+                            setPreviewImage(detailData.courseImageUrl);
+                        }
 
-                        // Set plan type (PAID/FREE)
-                        coursePricingValidation.setFieldValue("planType", pricingData.planType || "PAID");
+                        // Set course data with image URL
+                        setCourseData({
+                            courseId: detailData.courseId,
+                            courseName: detailData.courseName,
+                            courseStatus: detailData.courseStatus || "DRAFT",
+                            courseImageUrl: detailData.courseImageUrl
+                        });
 
-                        // Handle different validity types
-                        if (pricingData.validityType === "SINGLE") {
-                            // Single Validity
-                            setCourseValidityType({
-                                value: "SingleValidity",
-                                label: "Single Validity"
-                            });
+                        // Populate subcategory options for each row
+                        const subOptions = detailData.categoryMappings?.map(cat => {
+                            return cat.subcategories?.map(sub => ({
+                                value: sub.subCategoryId,
+                                label: sub.subCategoryName
+                            })) || [];
+                        }) || [];
+                        setSubOptionsByRow(subOptions);
 
-                            // Check if durations array exists and has data
-                            if (pricingData.durations && pricingData.durations.length > 0) {
-                                const duration = pricingData.durations[0];
-                                setSingleValidityDuration(duration.duration?.toString() || "");
-                                setSingleValidityType({
-                                    value: duration.durationUnit?.toLowerCase() || "months",
-                                    label: `${duration.durationUnit?.charAt(0)}${duration.durationUnit?.slice(1).toLowerCase()}(s)`
+                        // Populate pricing information if durations exist
+                        if (detailData.durations && detailData.durations.length > 0) {
+                            const duration = detailData.durations[0];
+
+                            // Set validity type based on duration
+                            if (duration.durationUnit) {
+                                setCourseValidityType({
+                                    value: "SingleValidity",
+                                    label: "Single Validity"
                                 });
-                                setPrice(duration.price?.toString() || "0");
-                                setDiscount(duration.discountPercent?.toString() || "0");
-                                setEffectivePrice(duration.effectivePrice?.toString() || "0");
+
+                                setSingleValidityDuration(duration.durationValue);
+                                setSingleValidityType({
+                                    value: duration.durationUnit.toLowerCase(),
+                                    label: `${duration.durationUnit.charAt(0)}${duration.durationUnit.slice(1).toLowerCase()}(s)`
+                                });
                             }
 
-                            // Set target course for FREE courses
-                            if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
-                                coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
-                            }
+                            // Set pricing
+                            setPrice(detailData.globalPrice?.toString() || "");
+                            setDiscount(detailData.globalDiscount?.toString() || "");
+                            setEffectivePrice(detailData.globalEffectivePrice?.toString() || "");
                         }
-                        else if (pricingData.validityType === "MULTIPLE") {
-                            // Multiple Validity
-                            setCourseValidityType({
-                                value: "MultipleValidity",
-                                label: "Multiple Validity"
-                            });
 
-                            if (pricingData.durations && pricingData.durations.length > 0) {
-                                const multiPlans = pricingData.durations.map((dur, index) => ({
-                                    planId: index + 1,
-                                    validityDuration: dur.duration,
-                                    validityDurationType: dur.durationUnit?.toLowerCase() || "months",
-                                    price: dur.price || 0,
-                                    discount: dur.discountPercent || 0,
-                                    effectivePrice: dur.effectivePrice || 0,
-                                    isPromoted: false,
-                                    isEditing: false,
-                                }));
-                                setMultiValidityPlansData(multiPlans);
-                            }
-                        }
-                        else if (pricingData.validityType === "LIFETIME") {
-                            // Lifetime Validity
-                            setCourseValidityType({
-                                value: "LifetimeValidity",
-                                label: "Lifetime Validity"
-                            });
-
-                            coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
-                            coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
-                            coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
-                        }
-                        else if (pricingData.validityType === "EXPIRY_DATE") {
-                            // Course Expiry Date
-                            setCourseValidityType({
-                                value: "CourseExpiryDate",
-                                label: "Course Expiry Date"
-                            });
-
-                            // Set expiry date
-                            if (pricingData.expiryDate) {
-                                coursePricingValidation.setFieldValue("expiryDate", new Date(pricingData.expiryDate));
-                            }
-
-                            coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
-                            coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
-                            coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
-
-                            // Set target course for FREE courses
-                            if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
-                                coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
-                            }
-                        }
+                        // Set active tab to show data
+                        setactiveTab(1);
                     }
                 } catch (error) {
-                    console.error("Error fetching pricing data:", error);
+                    console.error("Error fetching course details:", error);
                 }
             }
         };
 
-        fetchPricingData();
+        fetchCourseDetails();
     }, [editCourseData, isEditMode]);
 
     document.title = isEditMode ? "Update Course | Classplus" : "Create Course | Classplus";
