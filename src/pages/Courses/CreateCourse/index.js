@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { cloneDeep } from "lodash";
 import React, { useState, useCallback, useEffect } from 'react';
 import Flatpickr from "react-flatpickr";
-import { Link , useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import {
     Card,
@@ -45,7 +45,7 @@ import {
 // Formik
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { completeVideoUploadAPI, createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseDetailAPI, getCourseListAPI, initiateVideoUploadAPI, publishCourseAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI,getCoursePricingAPI } from "../../../api/course";
+import { completeVideoUploadAPI, createDraftCourseAPI, createPricingAPI, getAllCategoriesAPI, getAllFoldersByCourseIDAPI, getConetntDataByCourseIDAPI, getCourseDetailAPI, getCourseListAPI, initiateVideoUploadAPI, publishCourseAPI, updateCourseImageAPI, updateDraftCourseAPI, updatePriceAPI, getCoursePricingAPI } from "../../../api/course";
 import moment from "moment";
 import SimpleBar from "simplebar-react";
 import { AddFolder } from "./Modals/AddFolder";
@@ -56,10 +56,12 @@ import CreatableSelect from "react-select/creatable";
 import Swal from "sweetalert2";
 import VideoModal from "./Modals/VideoModal";
 import axios from "axios";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CreateCourse = () => {
     const location = useLocation();
-    const { courseData: editCourseData, isEditMode ,courseStatus} = location.state || {};
+    const { courseData: editCourseData, isEditMode, courseStatus } = location.state || {};
     const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
     const [progressbarvalue, setprogressbarvalue] = useState(0);
@@ -98,7 +100,7 @@ const CreateCourse = () => {
     const [priceData, setPriceData] = useState("");
     const [contents, setContents] = useState(null);
     const [modal_folder, setmodal_folder] = useState(false);
-    
+
     function tog_folder() {
         setmodal_folder(!modal_folder);
     }
@@ -466,7 +468,12 @@ const CreateCourse = () => {
                 const planType = coursePricingValidation.values.planType;
 
                 if (courseValidityType?.value === "MultipleValidity" && MultiValidityPlansData.length === 0) {
-                    alert("Please add at least one validity option before proceeding.");
+                    // alert("Please add at least one validity option before proceeding.");
+                    Swal.fire({
+                        icon: "error",
+                        title: "Failed",
+                        text: "Please add at least one validity option before proceeding."
+                    });
                     return;
                 }
 
@@ -546,6 +553,11 @@ const CreateCourse = () => {
 
                 if (!payload) {
                     console.warn("No validity type selected.");
+                    Swal.fire({
+                        icon: "error",
+                        title: "Failed",
+                        text: "No validity type selected."
+                    });
                     return;
                 }
 
@@ -556,11 +568,23 @@ const CreateCourse = () => {
                     const updatePriceResponse = await updatePriceAPI(payload);
                     if (updatePriceResponse?.status === true && updatePriceResponse?.data) {
                         setPriceData(updatePriceResponse?.data);
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Failed",
+                            text: "Something Went Wrong"
+                        });
                     }
                 } else {
                     const response = await createPricingAPI(payload);
                     if (response?.status === true && response?.data) {
                         setPriceData(response?.data);
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Failed",
+                            text: "Something Went Wrong"
+                        });
                     }
                 }
 
@@ -570,6 +594,11 @@ const CreateCourse = () => {
 
             } catch (error) {
                 console.error("Error creating pricing:", error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: "Something Went Wrong"
+                });
             }
         },
     });
@@ -667,6 +696,7 @@ const CreateCourse = () => {
     const validationSchema = Yup.object().shape({
         courseName: Yup.string().required("Course name is required"),
         courseDescription: Yup.string().required("Description is required"),
+        courseImageId: Yup.mixed().required("Thumbnail image is required"),
     });
 
     // Formik Setup for basic info
@@ -728,6 +758,7 @@ const CreateCourse = () => {
                     payload.courseId = courseData?.courseId;
                     payload.courseStatus = courseData?.courseStatus;
                     const updateResponse = await updateDraftCourseAPI(payload);
+                    
                     if (updateResponse?.status === true && updateResponse?.data) {
                         setCourseData(updateResponse?.data);
 
@@ -834,17 +865,35 @@ const CreateCourse = () => {
                         }
 
                         toggleTab(activeTab + 1, 33);
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Failed",
+                            text: "Something went wrong."
+                        });
                     }
                 } else {
                     // Else, create a new draft course
                     const response = await createDraftCourseAPI(payload);
+                    
                     if (response?.status === true && response?.data) {
                         setCourseData(response?.data);
                         toggleTab(activeTab + 1, 33);
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Failed",
+                            text: "Something went wrong."
+                        });
                     }
                 }
             } catch (error) {
                 console.error("Error creating draft course:", error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Failed",
+                    text: error?.response?.data?.message || error?.response?.data?.error || "Something went wrong."
+                });
             }
         },
     });
@@ -961,7 +1010,7 @@ const CreateCourse = () => {
     }));
 
     const onAddFolderHandler = (response) => {
-        refreshContents(courseData?.courseId, currentFolder);
+        refreshContents(courseData?.courseId, currentFolder, response?.data?.folderDepth);
     };
 
     const detectFileType = (mimeType) => {
@@ -1002,11 +1051,11 @@ const CreateCourse = () => {
     };
 
     // Fetch Course content by course ID - list content API
-    const refreshContents = async (courseId, folderID = 0) => {
+    const refreshContents = async (courseId, folderID = 0, folderDepth) => {
         try {
-            const res = await getConetntDataByCourseIDAPI(courseId, folderID);       
+            const res = await getConetntDataByCourseIDAPI(courseId, folderID, folderDepth);
             if (!res) return;
-            if(res.status) {
+            if (res.status) {
                 const folderList = (res.data.courseContentFolderDetails || []).map(f => ({
                     id: f.folderId,
                     name: f.folderName,
@@ -1014,7 +1063,7 @@ const CreateCourse = () => {
                     videoCount: f.total || 0,
                     url: null
                 }));
-    
+
                 const fileList = (res.data.courseContentPresignedDetails || []).map(v => {
                     const fileType = detectFileType(v.mimeType);
 
@@ -1027,7 +1076,7 @@ const CreateCourse = () => {
                 });
 
                 const finalData = [...folderList, ...fileList];
-                setContents(finalData);               
+                setContents(finalData);
             }
 
         } catch (err) {
@@ -1061,13 +1110,13 @@ const CreateCourse = () => {
     const [isUploading, setIsUploading] = useState(false);
 
     // FILE SELECTION HANDLER
-        const handleFileChange = (e) => {
-            setSelectedFiles([]);
-            if (e.target.files) {
-                const filesArray = Array.from(e.target.files);
-                setSelectedFiles(filesArray);
-            }
-        };
+    const handleFileChange = (e) => {
+        setSelectedFiles([]);
+        if (e.target.files) {
+            const filesArray = Array.from(e.target.files);
+            setSelectedFiles(filesArray);
+        }
+    };
 
     // FULL UPLOAD HANDLER
     const handleUpload = async () => {
@@ -1088,7 +1137,7 @@ const CreateCourse = () => {
         let mimeType = "application/octet-stream";
 
         if (selectedFiles[0].type.startsWith("video/")) {
-            mimeType = selectedFiles[0].type; 
+            mimeType = selectedFiles[0].type;
         } else if (selectedFiles[0].type.startsWith("image/")) {
             mimeType = selectedFiles[0].type;
         } else {
@@ -1541,10 +1590,13 @@ const CreateCourse = () => {
                                                                             name="courseName"
                                                                             value={formik.values.courseName}
                                                                             onChange={formik.handleChange}
+                                                                            onBlur={formik.handleBlur}
                                                                         />
+
                                                                         {formik.touched.courseName && formik.errors.courseName && (
                                                                             <div className="text-danger">{formik.errors.courseName}</div>
                                                                         )}
+
                                                                     </div>
                                                                 </Col>
 
@@ -1590,6 +1642,9 @@ const CreateCourse = () => {
                                                                             <small className="text-muted">
                                                                                 {previewImage ? 'Upload a new image to replace the current one' : 'Upload course thumbnail'}
                                                                             </small>
+                                                                            {formik.touched.courseImageId && formik.errors.courseImageId && (
+                                                                                <div className="text-danger">{formik.errors.courseImageId}</div>
+                                                                            )}
                                                                         </div>
                                                                     </Col>
 
@@ -1666,6 +1721,16 @@ const CreateCourse = () => {
                                                                                     isMulti={true}
                                                                                     // allow creating new options
                                                                                     formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
+                                                                                    styles={{
+                                                                                        multiValue: (base) => ({
+                                                                                            ...base,
+                                                                                        }),
+                                                                                        multiValueLabel: (base) => ({
+                                                                                            ...base,
+                                                                                            color: "#ffffff",
+                                                                                            fontWeight: 500,
+                                                                                        })
+                                                                                    }}
                                                                                 />
                                                                             </div>
                                                                         </Col>
@@ -1980,7 +2045,7 @@ const CreateCourse = () => {
 
                                                                     </div>
                                                                 </>)}
-                                                                
+
                                                                 {/* Expiry Date Block */}
                                                                 {courseValidityType && courseValidityType.value === "CourseExpiryDate" && (
                                                                     <div className="mt-3 mb-3" >
@@ -2184,14 +2249,14 @@ const CreateCourse = () => {
                                             <TabPane tabId={3}>
                                                 <div>
                                                     {/* Back to perent*/}
-                                                    {currentFolder !== 0  && (
+                                                    {currentFolder !== 0 && (
                                                         <div className="mb-3">
                                                             <h6 className="fw-bold">
                                                                 <span
                                                                     style={{ cursor: "pointer" }}
                                                                     onClick={() => goBackTo()}
                                                                 >
-                                                                {"<- Back"}
+                                                                    {"<- Back"}
                                                                 </span>
                                                             </h6>
                                                         </div>
@@ -2203,7 +2268,7 @@ const CreateCourse = () => {
                                                                 <div className="mx-n3 pt-4 px-4 overflow-x-hidden overflow-y-auto">
                                                                     <div id="folder-list" className="mb-2">
                                                                         <Row id="folderlist-data">
-                                                                            {(currentFolder !== 0  && contents == []) ? (
+                                                                            {(currentFolder !== 0 && contents == []) ? (
                                                                                 <Col xxl={12} className="col-6 folder-card">
                                                                                     <div className="text-center py-5">
                                                                                         <lord-icon
@@ -2214,16 +2279,16 @@ const CreateCourse = () => {
                                                                                     </div>
                                                                                 </Col>
                                                                             ) : (
-                                                                            <>
-                                                                                {(contents || []).map((item, key) => (                                                                                 
-                                                                                    <Col xxl={12} className="col-6 folder-card" key={key}>
+                                                                                <>
+                                                                                    {(contents || []).map((item, key) => (
+                                                                                        <Col xxl={12} className="col-6 folder-card" key={key}>
 
-                                                                                        <Card className="bg-light shadow-none">
+                                                                                            <Card className="bg-light shadow-none">
 
-                                                                                            <CardBody>
-                                                                                                <Row>
+                                                                                                <CardBody>
+                                                                                                    <Row>
 
-                                                                                                    {/* ICON */}
+                                                                                                        {/* ICON */}
                                                                                                         <Col sm={1}>
                                                                                                             {item.type === "folder" ? (
                                                                                                                 <i className="ri-folder-2-fill text-warning display-5"></i>
@@ -2231,106 +2296,72 @@ const CreateCourse = () => {
                                                                                                                 <i className="ri-video-fill text-danger display-5"></i>
                                                                                                             ) : item.type === "image" ? (
                                                                                                                 <i className="ri-image-fill text-info display-5"></i>
-                                                                                                            ) : (item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls"|| item.type === "ppt"|| item.type === "pptx"|| item.type === "txt") ? (
+                                                                                                            ) : (item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls" || item.type === "ppt" || item.type === "pptx" || item.type === "txt") ? (
                                                                                                                 <i className="ri-file-text-fill text-primary display-5"></i>
                                                                                                             ) : null}
                                                                                                         </Col>
 
-                                                                                                    {/* NAME + FILE COUNT */}
-                                                                                                    <Col sm={10}>
-                                                                                                        <div className="text-muted mt-2">
-                                                                                                            <h6 className="fs-15">{item.name}</h6>
-                                                                                                            
-                                                                                                            {item.type === "folder" ? (
-                                                                                                                <span><b>{item.videoCount}</b> Files</span>
-                                                                                                            ) : item.type === "video" ? (
-                                                                                                                <span
-                                                                                                                    className="text-primary"
-                                                                                                                    style={{ cursor: "pointer" }}
-                                                                                                                    onClick={() => {
-                                                                                                                        setSelectedVideoUrl(item.url);
-                                                                                                                        setVideoModalOpen(true);
-                                                                                                                    }}
-                                                                                                                >
-                                                                                                                    Watch Video
-                                                                                                                </span>
-                                                                                                            ) : item.type === "image" || item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls"|| item.type === "ppt"|| item.type === "pptx"|| item.type === "txt" ? (
-                                                                                                                <span
-                                                                                                                    className="text-primary"
-                                                                                                                    style={{ cursor: "pointer" }}
-                                                                                                                    onClick={() => {
-                                                                                                                        window.open(item.url, "_blank");
-                                                                                                                    }}
-                                                                                                                >
-                                                                                                                    {item.type === "image" ? "Open Image" : "Open Document"}
-                                                                                                                </span>
-                                                                                                            ) : null}
-                                                                                                        </div>
-                                                                                                    </Col>
-
-                                                                                                    {/* MENU */}
-                                                                                                        <Col sm={1}>
-                                                                                                            <UncontrolledDropdown className="float-end">
-                                                                                                                <DropdownToggle
-                                                                                                                    tag="button"
-                                                                                                                    type="button"
-                                                                                                                    className="btn btn-ghost-primary btn-icon btn-sm dropdown"
-                                                                                                                >
-                                                                                                                    <i className="ri-more-2-fill fs-16 align-bottom" />
-                                                                                                                </DropdownToggle>
-
-                                                                                                                <DropdownMenu className="dropdown-menu-end">
-                                                                                                                    <DropdownItem
-                                                                                                                        onClick={(e) => {
+                                                                                                        {/* NAME + FILE COUNT */}
+                                                                                                        <Col sm={10}>
+                                                                                                            <div className="text-muted mt-2">
+                                                                                                                <h6 className="fs-15" style={{ cursor: item.type === "folder" ? "pointer" : "default" }}
+                                                                                                                    onClick={(e) => {
+                                                                                                                        console.log("item-->>",item);
+                                                                                                                        if (item.type === "folder") {
                                                                                                                             e.preventDefault();
                                                                                                                             openFolder(item);
+                                                                                                                        }
+                                                                                                                    }}>{item.name}
+                                                                                                                </h6>
+
+                                                                                                                {item.type === "folder" ? (
+                                                                                                                    <span><b>{item.videoCount}</b> Files</span>
+                                                                                                                ) : item.type === "video" ? (
+                                                                                                                    <span
+                                                                                                                        className="text-primary"
+                                                                                                                        style={{ cursor: "pointer" }}
+                                                                                                                        onClick={() => {
+                                                                                                                            setSelectedVideoUrl(item.url);
+                                                                                                                            setVideoModalOpen(true);
                                                                                                                         }}
                                                                                                                     >
-                                                                                                                        Open
-                                                                                                                    </DropdownItem>
-
-                                                                                                                    <DropdownItem
-                                                                                                                        onClick={(e) => {
-                                                                                                                            e.preventDefault();
-                                                                                                                            alert("Edit folder feature coming soon!");
+                                                                                                                        Watch Video
+                                                                                                                    </span>
+                                                                                                                ) : item.type === "image" || item.type === "doc" || item.type === "pdf" || item.type === "docx" || item.type === "xls" || item.type === "ppt" || item.type === "pptx" || item.type === "txt" ? (
+                                                                                                                    <span
+                                                                                                                        className="text-primary"
+                                                                                                                        style={{ cursor: "pointer" }}
+                                                                                                                        onClick={() => {
+                                                                                                                            window.open(item.url, "_blank");
                                                                                                                         }}
                                                                                                                     >
-                                                                                                                        Edit
-                                                                                                                    </DropdownItem>
-
-                                                                                                                    <DropdownItem
-                                                                                                                        onClick={(e) => {
-                                                                                                                            e.preventDefault();
-                                                                                                                            alert("Remove folder feature coming soon!");
-                                                                                                                        }}
-                                                                                                                    >
-                                                                                                                        Remove
-                                                                                                                    </DropdownItem>
-
-                                                                                                                    <DropdownItem disabled>Locked</DropdownItem>
-                                                                                                                </DropdownMenu>
-                                                                                                            </UncontrolledDropdown>
+                                                                                                                        {item.type === "image" ? "Open Image" : "Open Document"}
+                                                                                                                    </span>
+                                                                                                                ) : null}
+                                                                                                            </div>
                                                                                                         </Col>
 
-                                                                                                </Row>
-                                                                                            </CardBody>
-                                                                                        </Card>
+                                                                                                
 
-                                                                                    </Col>
-                                                                                ))}
+                                                                                                    </Row>
+                                                                                                </CardBody>
+                                                                                            </Card>
 
-                                                                                {contents && contents.length === 0 && (
-                                                                                    <Col xxl={12} className="col-6 folder-card" >
-                                                                                        <div className="text-center py-5">
-                                                                                            <lord-icon
-                                                                                                src="https://cdn.lordicon.com/msoeawqm.json"
-                                                                                                trigger="loop"
-                                                                                            />
-                                                                                            <h5 className="mt-3">No Content Found.</h5>
-                                                                                        </div>
-                                                                                    </Col>
-                                                                                )}
-                                                                            </>
+                                                                                        </Col>
+                                                                                    ))}
+
+                                                                                    {contents && contents.length === 0 && (
+                                                                                        <Col xxl={12} className="col-6 folder-card" >
+                                                                                            <div className="text-center py-5">
+                                                                                                <lord-icon
+                                                                                                    src="https://cdn.lordicon.com/msoeawqm.json"
+                                                                                                    trigger="loop"
+                                                                                                />
+                                                                                                <h5 className="mt-3">No Content Found.</h5>
+                                                                                            </div>
+                                                                                        </Col>
+                                                                                    )}
+                                                                                </>
                                                                             )}
 
                                                                         </Row>
@@ -2429,10 +2460,10 @@ const CreateCourse = () => {
                                 </CardBody>
                             </Card>
                         </Col>
-                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId} folderID = {currentFolder}/>
+                        <AddFolder isOpen={modal_folder} toggle={() => { tog_folder(); }} onAddFolderHandler={onAddFolderHandler} courseId={courseData?.courseId} folderID={currentFolder} />
                         <AddVideo isOpen={modal_uploadVideo} toggle={() => { tog_video(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload} />
-                        <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload}/>
-                        <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload}/>
+                        <AddDocument isOpen={modal_uploadDocument} toggle={() => { tog_document(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload} />
+                        <AddImage isOpen={modal_uploadImage} toggle={() => { tog_image(); }} selectedFiles={selectedFiles} isUploading={isUploading} handleFileChange={handleFileChange} handleUpload={handleUpload} />
                         <VideoModal isOpen={videoModalOpen} toggle={toggleVideoModal} videoUrl={selectedVideoUrl} />
 
                         {/* <Col lg={12}>
