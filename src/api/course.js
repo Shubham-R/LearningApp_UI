@@ -66,9 +66,10 @@ export const getAllFoldersByCourseIDAPI = async (courseId) => {
 };
 
 // Get all folders by Course ID 
-export const getConetntDataByCourseIDAPI = async (courseId, folderId = 0) => {
+export const getConetntDataByCourseIDAPI = async (courseId, folderId = 0,folderDepth) => {
   if(!folderId) folderId = 0;
-  return await getMethodCall(`${config.api.API_URL}/course-content/list-contents?folderId=${folderId}&page=0&size=20&courseId=${courseId}&folderDepth=1`);
+  if(!folderDepth) folderDepth = 1;
+  return await getMethodCall(`${config.api.API_URL}/course-content/list-contents?folderId=${folderId}&page=0&size=20&courseId=${courseId}&folderDepth=${folderDepth}`);
 };
 
 
