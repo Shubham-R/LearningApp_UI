@@ -17,6 +17,8 @@ import {
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import { getCourseDetailsAPI, getCourseDetailAPI } from "../../../api/course";
+import noimage from "../../../assets/images/noimage.png";
+import { toast } from "react-toastify";
 
 const CourseDetails = () => {
     document.title = "Course Details | Classplus";
@@ -141,7 +143,7 @@ const CourseDetails = () => {
                                                     NEW
                                                 </span>
                                                 <img
-                                                    src={courseDetails?.courseImageUrl || "https://picsum.photos/200"}
+                                                    src={courseDetails?.courseImageUrl || noimage}
                                                     alt={courseDetails?.courseName}
                                                     className="img-fluid rounded w-100"
                                                     style={{ maxHeight: "200px", objectFit: "cover" }}
