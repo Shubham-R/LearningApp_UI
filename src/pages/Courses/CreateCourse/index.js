@@ -61,7 +61,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const CreateCourse = () => {
     const location = useLocation();
-    const { courseData: editCourseData, isEditMode, courseStatus } = location.state || {};
+    const { courseData: editCourseData, isEditMode, courseStatus, openTab } = location.state || {};
     const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
     const [progressbarvalue, setprogressbarvalue] = useState(0);
@@ -1331,7 +1331,7 @@ const CreateCourse = () => {
 
     // Fetch full course details from API when in edit mode
     useEffect(() => {
-        const fetchCourseDetails = async () => {
+        const initializeTabAndContent = async () => {
             if (isEditMode && editCourseData && editCourseData.courseId) {
                 try {
                     const payload = {
@@ -1408,17 +1408,125 @@ const CreateCourse = () => {
                             setEffectivePrice(detailData.globalEffectivePrice?.toString() || "");
                         }
 
-                        // Set active tab to show data
-                        setactiveTab(1);
+                        // If openTab is specified (e.g., 3 for Content), navigate to that tab
+                        if (openTab) {
+                            // Fetch pricing data first
+                            const pricingParams = {
+                                courseId: detailData.courseId,
+                                expand: "durations"
+                            };
+                            const pricingResponse = await getCoursePricingAPI(pricingParams);
+
+                            if (pricingResponse?.status && pricingResponse.data?.length > 0) {
+                                const pricingData = pricingResponse.data[0];
+                                setPriceData(pricingData);
+                                coursePricingValidation.setFieldValue("planType", pricingData.planType || "PAID");
+
+                                // Handle different validity types
+                                if (pricingData.validityType === "SINGLE") {
+                                    setCourseValidityType({
+                                        value: "SingleValidity",
+                                        label: "Single Validity"
+                                    });
+
+                                    if (pricingData.durations && pricingData.durations.length > 0) {
+                                        const duration = pricingData.durations[0];
+                                        setSingleValidityDuration(duration.duration?.toString() || "");
+                                        setSingleValidityType({
+                                            value: duration.durationUnit?.toLowerCase() || "months",
+                                            label: `${duration.durationUnit?.charAt(0)}${duration.durationUnit?.slice(1).toLowerCase()}(s)`
+                                        });
+                                        setPrice(duration.price?.toString() || "0");
+                                        setDiscount(duration.discountPercent?.toString() || "0");
+                                        setEffectivePrice(duration.effectivePrice?.toString() || "0");
+                                    }
+
+                                    if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                        coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                                    }
+                                }
+                                else if (pricingData.validityType === "MULTIPLE") {
+                                    setCourseValidityType({
+                                        value: "MultipleValidity",
+                                        label: "Multiple Validity"
+                                    });
+
+                                    if (pricingData.durations && pricingData.durations.length > 0) {
+                                        const multiPlans = pricingData.durations.map((dur, index) => ({
+                                            planId: index + 1,
+                                            validityDuration: dur.duration,
+                                            validityDurationType: dur.durationUnit?.toLowerCase() || "months",
+                                            price: dur.price || 0,
+                                            discount: dur.discountPercent || 0,
+                                            effectivePrice: dur.effectivePrice || 0,
+                                            isPromoted: false,
+                                            isEditing: false,
+                                        }));
+                                        setMultiValidityPlansData(multiPlans);
+                                    }
+                                }
+                                else if (pricingData.validityType === "LIFETIME") {
+                                    setCourseValidityType({
+                                        value: "LifetimeValidity",
+                                        label: "Lifetime Validity"
+                                    });
+
+                                    coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                                    coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                                    coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+                                }
+                                else if (pricingData.validityType === "EXPIRY_DATE") {
+                                    setCourseValidityType({
+                                        value: "CourseExpiryDate",
+                                        label: "Course Expiry Date"
+                                    });
+
+                                    if (pricingData.expiryDate) {
+                                        coursePricingValidation.setFieldValue("expiryDate", new Date(pricingData.expiryDate));
+                                    }
+
+                                    coursePricingValidation.setFieldValue("price", pricingData.price?.toString() || "");
+                                    coursePricingValidation.setFieldValue("discountPercent", pricingData.discountPercent?.toString() || "");
+                                    coursePricingValidation.setFieldValue("effectivePrice", pricingData.effectivePrice?.toString() || "");
+
+                                    if (pricingData.planType === "FREE" && pricingData.targetCourseId) {
+                                        coursePricingValidation.setFieldValue("targetCourseId", pricingData.targetCourseId);
+                                    }
+                                }
+                            }
+
+                            // If navigating to tab 3 (Add Content), fetch content data
+                            if (openTab === 3) {
+                                await refreshContents(detailData.courseId);
+                            }
+
+                            // Set the active tab based on openTab value
+                            setactiveTab(openTab);
+
+                            // Set progress bar value based on tab
+                            const progressValues = { 1: 0, 2: 33, 3: 67, 4: 100 };
+                            setprogressbarvalue(progressValues[openTab] || 0);
+
+                            // Update passed steps
+                            const steps = [];
+                            for (let i = 1; i <= openTab; i++) {
+                                steps.push(i);
+                            }
+                            setPassedSteps(steps);
+                        } else {
+                            // Default to tab 1 if no specific tab requested
+                            setactiveTab(1);
+                        }
                     }
                 } catch (error) {
                     console.error("Error fetching course details:", error);
+                    toast.error("Failed to fetch course details");
                 }
             }
         };
 
-        fetchCourseDetails();
-    }, [editCourseData, isEditMode]);
+        initializeTabAndContent();
+    }, [editCourseData, isEditMode, openTab]);
 
     document.title = isEditMode ? "Update Course | Classplus" : "Create Course | Classplus";
 

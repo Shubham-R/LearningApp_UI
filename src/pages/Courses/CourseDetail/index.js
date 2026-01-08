@@ -102,6 +102,17 @@ const CourseDetails = () => {
         toggleLiveChatModal();
     };
 
+    const handleNavigateToContent = () => {
+        navigate(`/update-course/${courseId}`, {
+            state: {
+                courseData: courseDetails,
+                isEditMode: true,
+                courseStatus: courseStatus,
+                openTab: 3
+            }
+        });
+    };
+
     if (loading) {
         return (
             <div className="page-content">
@@ -276,7 +287,11 @@ const CourseDetails = () => {
                             <Card>
                                 <CardBody>
                                     {/* Content Section */}
-                                    <div className="mb-3 pb-3 border-bottom" style={{ cursor: 'pointer' }}>
+                                    <div
+                                        className="mb-3 pb-3 border-bottom"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={handleNavigateToContent}
+                                    >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div className="d-flex align-items-center">
                                                 <div className="flex-shrink-0">
