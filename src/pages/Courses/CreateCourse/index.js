@@ -1,7 +1,7 @@
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import classnames from "classnames";
-import { cloneDeep } from "lodash";
+import { cloneDeep, set } from "lodash";
 import React, { useState, useCallback, useEffect } from 'react';
 import Flatpickr from "react-flatpickr";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -61,6 +61,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const CreateCourse = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const { courseData: editCourseData, isEditMode, courseStatus } = location.state || {};
     const [previewImage, setPreviewImage] = useState(null);
     const [activeTab, setactiveTab] = useState(1);
@@ -100,6 +101,8 @@ const CreateCourse = () => {
     const [priceData, setPriceData] = useState("");
     const [contents, setContents] = useState(null);
     const [modal_folder, setmodal_folder] = useState(false);
+    const [currentFolderDepth, setCurrentFolderDepth] = useState(1);
+
 
     function tog_folder() {
         setmodal_folder(!modal_folder);
@@ -696,7 +699,7 @@ const CreateCourse = () => {
     const validationSchema = Yup.object().shape({
         courseName: Yup.string().required("Course name is required"),
         courseDescription: Yup.string().required("Description is required"),
-        courseImageId: Yup.mixed().required("Thumbnail image is required"),
+        // courseImageId: Yup.mixed().required("Thumbnail image is required"),
     });
 
     // Formik Setup for basic info
@@ -758,7 +761,7 @@ const CreateCourse = () => {
                     payload.courseId = courseData?.courseId;
                     payload.courseStatus = courseData?.courseStatus;
                     const updateResponse = await updateDraftCourseAPI(payload);
-                    
+
                     if (updateResponse?.status === true && updateResponse?.data) {
                         setCourseData(updateResponse?.data);
 
@@ -875,7 +878,7 @@ const CreateCourse = () => {
                 } else {
                     // Else, create a new draft course
                     const response = await createDraftCourseAPI(payload);
-                    
+
                     if (response?.status === true && response?.data) {
                         setCourseData(response?.data);
                         toggleTab(activeTab + 1, 33);
@@ -1094,14 +1097,19 @@ const CreateCourse = () => {
     const openFolder = (folder) => {
         setCurrentFolder(folder.id);
         setContents([]);
+        const folderDepth = currentFolderDepth + 1;
+        setCurrentFolderDepth(folderDepth);
         // CALL API TO GET CHILD CONTENT
-        refreshContents(courseData?.courseId, folder.id);
+        refreshContents(courseData?.courseId, folder.id, folderDepth );
     };
 
     // GO BACK TO PARENT
     const goBackTo = () => {
         const folderId = 0;
         setCurrentFolder(folderId);
+        const folderDepth = currentFolderDepth - 1;
+        setCurrentFolderDepth(folderDepth);
+        setContents([]);
         refreshContents(courseData?.courseId, folderId); // load parent contents - folder id = 0 (parent folder)
     };
 
@@ -1311,6 +1319,8 @@ const CreateCourse = () => {
                 });
 
                 if (onSuccess) onSuccess();
+
+                
             } else {
                 Swal.fire({
                     icon: "error",
@@ -1642,9 +1652,9 @@ const CreateCourse = () => {
                                                                             <small className="text-muted">
                                                                                 {previewImage ? 'Upload a new image to replace the current one' : 'Upload course thumbnail'}
                                                                             </small>
-                                                                            {formik.touched.courseImageId && formik.errors.courseImageId && (
+                                                                            {/* {formik.touched.courseImageId && formik.errors.courseImageId && (
                                                                                 <div className="text-danger">{formik.errors.courseImageId}</div>
-                                                                            )}
+                                                                            )} */}
                                                                         </div>
                                                                     </Col>
 
@@ -2283,7 +2293,16 @@ const CreateCourse = () => {
                                                                                     {(contents || []).map((item, key) => (
                                                                                         <Col xxl={12} className="col-6 folder-card" key={key}>
 
-                                                                                            <Card className="bg-light shadow-none">
+                                                                                            <Card 
+                                                                                                className="bg-light shadow-none" 
+                                                                                                style={{ cursor: item.type === "folder" ? "pointer" : "default" }}
+                                                                                                onClick={(e) => {
+                                                                                                        if (item.type === "folder") {
+                                                                                                            e.preventDefault();
+                                                                                                            openFolder(item);
+                                                                                                        }
+                                                                                                }}
+                                                                                            >
 
                                                                                                 <CardBody>
                                                                                                     <Row>
@@ -2306,7 +2325,7 @@ const CreateCourse = () => {
                                                                                                             <div className="text-muted mt-2">
                                                                                                                 <h6 className="fs-15" style={{ cursor: item.type === "folder" ? "pointer" : "default" }}
                                                                                                                     onClick={(e) => {
-                                                                                                                        console.log("item-->>",item);
+                                                                                                                        console.log("item-->>", item);
                                                                                                                         if (item.type === "folder") {
                                                                                                                             e.preventDefault();
                                                                                                                             openFolder(item);
@@ -2341,7 +2360,7 @@ const CreateCourse = () => {
                                                                                                             </div>
                                                                                                         </Col>
 
-                                                                                                
+
 
                                                                                                     </Row>
                                                                                                 </CardBody>
@@ -2428,6 +2447,9 @@ const CreateCourse = () => {
                                                             handlePublishCourse(courseData?.courseId, () => {
                                                                 // Move to next tab after successful publish
                                                                 toggleTab(activeTab + 1, 100);
+                                                                setTimeout(() => {
+                                                                   navigate(`/courses/${courseData?.courseId}`); // Navigate to courses page
+                                                                }, 2000 )
                                                             });
                                                         }}
                                                     >
