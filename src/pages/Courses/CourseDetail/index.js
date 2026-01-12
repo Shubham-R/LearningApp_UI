@@ -17,6 +17,8 @@ import {
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import { getCourseDetailsAPI, getCourseDetailAPI } from "../../../api/course";
+import noimage from "../../../assets/images/noimage.png";
+import { toast } from "react-toastify";
 
 const CourseDetails = () => {
     document.title = "Course Details | Classplus";
@@ -100,6 +102,17 @@ const CourseDetails = () => {
         toggleLiveChatModal();
     };
 
+    const handleNavigateToContent = () => {
+        navigate(`/update-course/${courseId}`, {
+            state: {
+                courseData: courseDetails,
+                isEditMode: true,
+                courseStatus: courseStatus,
+                openTab: 3
+            }
+        });
+    };
+
     if (loading) {
         return (
             <div className="page-content">
@@ -141,7 +154,7 @@ const CourseDetails = () => {
                                                     NEW
                                                 </span>
                                                 <img
-                                                    src={courseDetails?.courseImageUrl || "https://picsum.photos/200"}
+                                                    src={courseDetails?.courseImageUrl || noimage}
                                                     alt={courseDetails?.courseName}
                                                     className="img-fluid rounded w-100"
                                                     style={{ maxHeight: "200px", objectFit: "cover" }}
@@ -274,7 +287,11 @@ const CourseDetails = () => {
                             <Card>
                                 <CardBody>
                                     {/* Content Section */}
-                                    <div className="mb-3 pb-3 border-bottom" style={{ cursor: 'pointer' }}>
+                                    <div
+                                        className="mb-3 pb-3 border-bottom"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={handleNavigateToContent}
+                                    >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div className="d-flex align-items-center">
                                                 <div className="flex-shrink-0">

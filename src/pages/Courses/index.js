@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import moment from 'moment';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     Card,
     CardBody,
@@ -44,6 +44,18 @@ const Courses = () => {
     const [priceRangeLower, setPriceRangeLower] = useState("");
     const [priceRangeHigher, setPriceRangeHigher] = useState("");
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+    const navigate = useNavigate();
+
+    const navigateToCourse = (course) => {
+        if (!course || !course.courseId) return;
+        navigate(`/course-details/${course.courseId}`, {
+            state: {
+                courseName: course.courseName,
+                courseStatus: course.courseStatus,
+            },
+        });
+    };
 
     const observer = useRef();
     const loaderRef = useRef(null);
@@ -334,7 +346,16 @@ const Courses = () => {
                             <Row className="row-cols-xxl-4 row-cols-xl-3 row-cols-lg-2 row-cols-md-1" id="explorecard-list">
                                 {displayedCourses.map((course) => (
                                     <Col key={course.courseId}>
-                                        <Card className="explore-box card-animate">
+                                        <Card
+                                            className="explore-box card-animate"
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => navigateToCourse(course)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') navigateToCourse(course);
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                        >
                                             <div className="explore-place-bid-img" style={{ position: 'relative' }}>
                                                 <img
                                                     src={course.courseImageUrl || noimage}
